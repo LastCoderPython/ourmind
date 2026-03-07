@@ -1,0 +1,100 @@
+trust_remote_code=True,
+        
+^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\baibha
+v\AppData\Local\Program
+s\Python\Python314\Lib\
+site-packages\transform
+ers\models\auto\auto_fa
+ctory.py", line 374, 
+in from_pretrained
+    return model_class.
+from_pretrained(
+           ~~~~~~~~~~~~
+~~~~~~~~~~~~~~~^
+        pretrained_mode
+l_name_or_path, 
+*model_args, 
+config=config, 
+**hub_kwargs, **kwargs
+        ^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\baibha
+v\AppData\Local\Program
+s\Python\Python314\Lib\
+site-packages\transform
+ers\modeling_utils.py",
+ line 4137, in 
+from_pretrained
+    loading_info, 
+disk_offload_index = cl
+s._load_pretrained_mode
+l(model, state_dict, 
+checkpoint_files, 
+load_config)
+                       
+                ~~~~~~~
+~~~~~~~~~~~~~~~~~~~^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\baibha
+v\AppData\Local\Program
+s\Python\Python314\Lib\
+site-packages\transform
+ers\modeling_utils.py",
+ line 4216, in 
+_load_pretrained_model
+    caching_allocator_w
+armup(model, 
+expanded_device_map, lo
+ad_config.hf_quantizer)
+    ~~~~~~~~~~~~~~~~~~~
+~~~~~^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^
+  File "C:\Users\baibha
+v\AppData\Local\Program
+s\Python\Python314\Lib\
+site-packages\transform
+ers\modeling_utils.py",
+ line 4767, in caching_
+allocator_warmup
+    param: 
+torch.device(device) 
+for param, device in ex
+panded_device_map.items
+() if is_accelerator_de
+vice(device)
+                       
+                       
+                       
+               ~~~~~~~~
+~~~~~~~~~~~~~^^^^^^^^
+  File "C:\Users\baibha
+v\AppData\Local\Program
+s\Python\Python314\Lib\
+site-packages\transform
+ers\modeling_utils.py",
+ line 4709, in 
+is_accelerator_device
+    return torch.device
+(device).type not in 
+["meta", "cpu"]
+           
+~~~~~~~~~~~~^^^^^^^^
+RuntimeError: Cannot 
+access accelerator 
+device when none is 
+available.
+
+ERROR:    Application 
+startup failed. 
+Exiting.
+[EmotionService] [OK] Multilingual distress model loaded.
+[LLMService] Loading abhinavsarkar/Llama-3.1-8b-bnb-4bit-finetuned-Mental-Health-Counselling-Conversations (4-bit) on CUDA...
