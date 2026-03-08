@@ -1,0 +1,6 @@
+{
+    "python.defaultInterpreterPath": "d:\\HACKATHONS\\GCU\\backend\\venv_311\\Scripts\\python.exe",
+    "python.analysis.extraPaths": [
+        "d:\\HACKATHONS\\GCU\\backend"
+    ]
+}

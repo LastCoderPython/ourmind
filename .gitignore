@@ -8,3 +8,8 @@ __pycache__/
 
 # Ignore log files
 *.log
+
+# Ignore virtual environments
+venv/
+venv_311/
+backend/venv_311/

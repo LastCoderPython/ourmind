@@ -5,6 +5,7 @@ Uses Groq API (Llama 3 8B) for ultra-fast, cloud-based mental health counselling
 """
 
 import os
+import json
 from groq import Groq
 from collections import defaultdict
 
@@ -19,7 +20,12 @@ SYSTEM_PROMPT = (
     "student anonymity and focus on active listening and coping strategies. "
     "Respond with warmth, validate feelings, and guide students through "
     "cognitive behavioral techniques when appropriate. Keep responses concise "
-    "and supportive."
+    "and supportive. "
+    "IMPORTANT: You MUST ALWAYS reply with a valid JSON object strictly containing TWO keys: "
+    "1. 'response': Your conversational text response. "
+    "2. 'suggested_tasks': A list of 0 to 2 short, actionable gamified tasks for the user "
+    "to complete today (e.g. '5-minute breathing exercise', 'Log your meals', "
+    "or 'Write down one thing you are grateful for')."
 )
 
 MAX_HISTORY_TURNS = 10      # keep last N user+assistant turns per session
@@ -31,7 +37,7 @@ class LLMService:
     """Uses Groq cloud API for counselling generation."""
 
     def __init__(self) -> None:
-        self._client = None
+        self._client: Groq | None = None
         self._history: dict[str, list[dict[str, str]]] = defaultdict(list)
 
     def load_model(self) -> None:
@@ -43,9 +49,9 @@ class LLMService:
         self._client = Groq(api_key=api_key)
         print("[LLMService] [OK] Groq client initialized successfully.")
 
-    def get_response(self, message: str, session_id: str) -> str:
+    def get_response(self, message: str, session_id: str) -> tuple[str, list[str]]:
         """
-        Generate a counselling response for the given message using Groq.
+        Generate a counselling response and optional CBT tasks using Groq.
 
         Parameters
         ----------
@@ -54,7 +60,7 @@ class LLMService:
 
         Returns
         -------
-        The assistant's response string.
+        Tuple containing (The assistant's response string, List of suggested tasks).
         """
         if self._client is None:
             raise RuntimeError("LLM client not loaded. Call load_model() first.")
@@ -65,25 +71,43 @@ class LLMService:
 
         # Trim history to keep context window manageable
         if len(history) > MAX_HISTORY_TURNS * 2:
-            history[:] = history[-(MAX_HISTORY_TURNS * 2):]
+            self._history[session_id] = history[-(MAX_HISTORY_TURNS * 2):]  # type: ignore
+            history = self._history[session_id]
 
         # Construct messages array
         messages = [{"role": "system", "content": SYSTEM_PROMPT}] + history
 
         try:
+            assert self._client is not None
             completion = self._client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=messages,
                 temperature=0.7,
-                max_tokens=512,
+                max_tokens=600,
                 top_p=0.9,
+                response_format={"type": "json_object"},
             )
             
-            response = completion.choices[0].message.content.strip()
+            raw_response = completion.choices[0].message.content.strip()
+            
+            # Parse the JSON out
+            try:
+                parsed = json.loads(raw_response)
+                if not isinstance(parsed, dict):
+                    parsed = {"response": str(parsed)}
+                    
+                ai_text = parsed.get("response", "I'm here to listen.")
+                ai_tasks = parsed.get("suggested_tasks", [])
+                if not isinstance(ai_tasks, list):
+                    ai_tasks = [str(ai_tasks)] if ai_tasks else []
+            except json.JSONDecodeError:
+                # Fallback in case the LLM breaks syntax
+                ai_text = raw_response
+                ai_tasks = []
             
             # Store assistant response in history
-            history.append({"role": "assistant", "content": response})
-            return response
+            history.append({"role": "assistant", "content": ai_text})
+            return ai_text, ai_tasks
             
         except Exception as e:
             # Re-raise to be caught by fastapi endpoint

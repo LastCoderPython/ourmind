@@ -68,8 +68,8 @@ class EmotionService:
     """
 
     def __init__(self) -> None:
-        self._emotion_pipeline = None
-        self._distress_pipeline = None
+        self._emotion_pipeline: Any = None
+        self._distress_pipeline: Any = None
 
     def load_model(self) -> None:
         """Load both analysis pipelines onto CPU to save VRAM for the LLM."""
@@ -115,7 +115,7 @@ class EmotionService:
         if self._emotion_pipeline is None or self._distress_pipeline is None:
             raise RuntimeError("Models not loaded. Call load_model() first.")
 
-        truncated = text[:512]
+        truncated = text[:512]  # type: ignore
 
         # ── GoEmotions Analysis ──────────────────────────────────────────
         emotion_results = self._emotion_pipeline(truncated)
@@ -124,7 +124,7 @@ class EmotionService:
             for item in emotion_results[0]
         }
 
-        dominant_emotion = max(emotion_scores, key=emotion_scores.get)
+        dominant_emotion = max(emotion_scores.items(), key=lambda x: x[1])[0]
 
         # ── Distress Sentiment Analysis ──────────────────────────────────
         distress_results = self._distress_pipeline(truncated)

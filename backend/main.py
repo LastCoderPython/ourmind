@@ -20,54 +20,18 @@ load_dotenv()
 
 from services.emotion_service import emotion_service
 from services.llm_service import llm_service
+from services.audio_service import audio_service
+from routers import chat_router, mood_router, task_router, garden_router, community_router
 
 
 # ── Pydantic Models ──────────────────────────────────────────────────────────
 
-class ChatRequest(BaseModel):
-    """Incoming chat request from the frontend."""
-    message: str = Field(..., min_length=1, max_length=2000, description="User message")
-    session_id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        description="Unique session identifier",
-    )
-    language: str = Field(default="en", description="Preferred language code")
+class MoodEntry(BaseModel):
+    date: str
+    emotion: str
+    intensity: float
 
 
-class EmotionScore(BaseModel):
-    """Individual emotion label and its confidence score."""
-    label: str
-    score: float
-
-
-class HelplineInfo(BaseModel):
-    """Verified helpline contact."""
-    name: str
-    number: str
-    description: str
-
-
-class DistressScore(BaseModel):
-    """Multilingual distress sentiment score."""
-    label: str
-    score: float
-
-
-class CrisisInfo(BaseModel):
-    """Crisis alert payload with dual-model reasoning."""
-    crisis_trigger: bool = False
-    crisis_reasons: list[str] = []
-    helplines: list[HelplineInfo] = []
-
-
-class ChatResponse(BaseModel):
-    """Full response returned from POST /api/chat."""
-    session_id: str
-    response: str
-    emotions: list[EmotionScore]
-    distress_scores: list[DistressScore]
-    dominant_emotion: str
-    crisis: CrisisInfo
 
 
 class MoodEntry(BaseModel):
@@ -91,6 +55,9 @@ async def lifespan(app: FastAPI):
 
     # 2. Load large LLM
     llm_service.load_model()
+    
+    # 3. Load Audio APIs (Voice STT/TTS)
+    audio_service.load_clients()
 
     print("=" * 60)
     print("  [OK] All models loaded. Server is ready.")
@@ -136,53 +103,12 @@ async def root():
     }
 
 
-@app.post("/api/chat", response_model=ChatResponse, tags=["Chat"])
-async def chat(request: ChatRequest):
-    """
-    Process a user message:
-    1. Dual-model emotion + distress analysis (GoEmotions + multilingual)
-    2. Generate counselling response (local Llama 3.1 8B on CUDA)
-    3. Return combined result with crisis flags if applicable
-    """
-    try:
-        # ── Step 1: Dual-Model Emotion & Distress Analysis ───────────────
-        analysis = emotion_service.analyze(request.message)
-
-        emotion_scores = [
-            EmotionScore(label=label, score=score)
-            for label, score in analysis["emotions"].items()
-        ]
-
-        distress_scores = [
-            DistressScore(label=label, score=score)
-            for label, score in analysis["distress_scores"].items()
-        ]
-
-        crisis = CrisisInfo(
-            crisis_trigger=analysis["crisis_trigger"],
-            crisis_reasons=analysis.get("crisis_reasons", []),
-            helplines=[
-                HelplineInfo(**h) for h in analysis.get("helplines", [])
-            ],
-        )
-
-        # ── Step 2: LLM Response ─────────────────────────────────────────
-        ai_response = llm_service.get_response(
-            message=request.message,
-            session_id=request.session_id,
-        )
-
-        return ChatResponse(
-            session_id=request.session_id,
-            response=ai_response,
-            emotions=emotion_scores,
-            distress_scores=distress_scores,
-            dominant_emotion=analysis["dominant_emotion"],
-            crisis=crisis,
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Processing error: {str(e)}")
+# Register Modular Routers
+app.include_router(chat_router.router)
+app.include_router(mood_router.router)
+app.include_router(task_router.router)
+app.include_router(garden_router.router)
+app.include_router(community_router.router)
 
 
 @app.get(
@@ -205,7 +131,7 @@ async def get_dashboard(session_id: str):
         current_date = today - timedelta(days=13 - day_offset)
         # Pick a dominant emotion with realistic-looking intensities
         dominant = random.choice(emotions)
-        intensity = round(random.uniform(0.3, 0.95), 2)
+        intensity = float(f"{random.uniform(0.3, 0.95):.2f}")
         mock_data.append(
             MoodEntry(
                 date=current_date.isoformat(),
