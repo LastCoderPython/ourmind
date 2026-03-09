@@ -1,0 +1,25 @@
+# ── Manas Backend – Render Deployment Blueprint ─────────────────────────────
+# This file tells Render how to build and deploy the backend.
+# Docs: https://docs.render.com/blueprint-spec
+
+services:
+  - type: web
+    name: manas-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false  # You must set this manually in the Render dashboard
+      - key: CARTESIA_API_KEY
+        sync: false
+      - key: HF_API_TOKEN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+    healthCheckPath: /

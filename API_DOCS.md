@@ -1,90 +1,179 @@
-# OurMind API Documentation for Frontend
+# Manas – Frontend API Integration Guide
 
-This document explains how the React/Next.js frontend should communicate with the FastAPI backend.
+This document outlines how the React/Next.js frontend should communicate with the FastAPI backend. It covers authentication, text chat, the new **multilingual voice chat**, gamification tasks, and dashboard analytics.
 
 ## Base URL
 When running locally: `http://127.0.0.1:8000`
 
 ---
 
-## 1. Chat & Analysis Endpoint
+## 🔐 Authentication (Supabase)
+
+The backend relies on Supabase for authentication. You do not need to hit the backend to login/register. Instead:
+1. Use the Supabase JS client on the frontend to authenticate the user.
+2. Extract the JWT access token from the Supabase session.
+3. Pass this token in the `Authorization` header of **every** backend request.
+
+**Example Header:**
+```http
+Authorization: Bearer eyJhbGciOiJIUzI...
+```
+
+---
+
+## 💬 1. Text Chat Endpoint
 **POST** `/api/chat`
 
-This is the core endpoint. Whenever the user sends a message, you send it here. The backend will run the text through two local emotion detection models (GoEmotions 28-label and Multilingual Distress), check for crisis triggers, and then generate a therapeutic response using Llama 3 via Groq.
+Sends the user's text message to the AI. The backend processes the emotion, checks for crisis triggers, and returns a therapeutic response alongside gamified tasks.
 
 ### Request Body (JSON)
 ```json
 {
-  "session_id": "user_123_session",
-  "message": "I am feeling extremely overwhelmed with my university assignments and can't sleep."
+  "session_id": "uuid-for-this-conversation",
+  "message": "I am feeling extremely overwhelmed with my university assignments."
 }
 ```
 
 ### Success Response (200 OK)
 ```json
 {
-  "session_id": "user_123_session",
+  "session_id": "uuid-for-this-conversation",
   "response": "I hear how overwhelmed you are feeling right now...",
-  "emotions": {
-    "nervousness": 0.82,
-    "sadness": 0.45,
-    "fear": 0.31
-  },
-  "distress_scores": {
-    "positive": 0.05,
-    "neutral": 0.10,
-    "negative": 0.85
-  },
+  "suggested_tasks": [
+    "Take a 5-minute breathing break",
+    "List 3 things you are grateful for"
+  ],
+  "detected_language": "en",
+  "emotions": [
+    {"label": "nervousness", "score": 0.82},
+    {"label": "sadness", "score": 0.45}
+  ],
+  "distress_scores": [
+    {"label": "negative", "score": 0.85}
+  ],
   "dominant_emotion": "nervousness",
   "crisis": {
-    "crisis_trigger": true,
-    "crisis_reasons": [
-      "Negative distress score (0.85) exceeds 0.85 threshold.",
-      "High level of nervousness (0.82) detected."
-    ],
-    "helplines": [
-      "National Suicide Prevention Lifeline: 988",
-      "Crisis Text Line: Text HOME to 741741",
-      "University Counseling Center: (555) 123-4567"
-    ]
+    "crisis_trigger": false,
+    "crisis_reasons": [],
+    "helplines": []
   }
 }
 ```
-
-**Frontend Implementation Notes:**
-- Display the `response` string in the chat bubble.
-- If `crisis.crisis_trigger` is `true`, the UI should immediately render a high-priority alert or persistent banner displaying the strings inside `crisis.helplines`.
-- You can use `dominant_emotion` to dynamically change the UI colors, mascot expressions, or background animations!
+**Notes for Frontend:**
+- If `crisis.crisis_trigger` is `true`, immediately display a persistent banner showing the `helplines`.
+- Use `dominant_emotion` to change the UI colors or mascot expressions (e.g., blue for sadness, yellow for joy).
+- The `suggested_tasks` are automatically saved to the user's daily tasks table in Supabase.
 
 ---
 
-## 2. Dashboard Analytics Endpoint
-**GET** `/api/dashboard/{session_id}`
+## 🎙️ 2. Multilingual Voice Chat Endpoint (NEW)
+**POST** `/api/chat/voice`
 
-This endpoint provides mock 14-day historical mood data. The frontend should use this to render the user's progress graphs and mood charts on their profile/dashboard page.
+Sends user audio (in English or Hindi) to the AI. Returns an **Audio Stream (MP3)** of the AI speaking logically in that language (using Cartesia's Sonic engine), along with metadata in the HTTP response headers.
 
-### Path Parameters
-- `session_id` (string): The unique ID of the user's session.
+### Request (Multipart Form-Data)
+Unlike the text endpoint, this requires `multipart/form-data`.
+
+```javascript
+const formData = new FormData();
+formData.append("audio_file", audioBlob, "recording.webm"); // The recorded audio file
+formData.append("session_id", "uuid-for-this-conversation");
+
+const response = await fetch("http://127.0.0.1:8000/api/chat/voice", {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${token}`
+    // DO NOT set Content-Type manually. Fetch sets it automatically with the boundary.
+  },
+  body: formData
+});
+```
 
 ### Success Response (200 OK)
+- **Body:** The response body is an `audio/mpeg` binary Blob (the AI speaking).
+- **Headers:** Metadata is sent in custom headers. **CRITICAL:** These headers are URL-encoded on the backend to prevent Unicode crashes with Indian scripts (like Devanagari). You **MUST** decode them using `decodeURIComponent`.
+
+#### Handling the Voice Response in Frontend:
+```javascript
+// 1. Get the MP3 audio
+const audioBlob = await response.blob();
+const audioUrl = URL.createObjectURL(audioBlob);
+const audio = new Audio(audioUrl);
+audio.play();
+
+// 2. Extract and decode the metadata headers
+const userTranscript = decodeURIComponent(response.headers.get("X-User-Transcript")); 
+const aiResponseText = decodeURIComponent(response.headers.get("X-AI-Response"));
+const detectedLang = response.headers.get("X-AI-Language"); // e.g. "hi", "en"
+
+// Tasks are returned as a JSON string
+const tasksHeader = response.headers.get("X-AI-Tasks");
+const tasks = tasksHeader ? JSON.parse(decodeURIComponent(tasksHeader)) : [];
+```
+
+#### ⚠️ Supported Languages
+- **English (`en`)**: Supported natively. The AI understands English and responds with a realistic English voice.
+- **Hindi (`hi`)**: Supported natively. The AI understands Hindi and responds with a realistic Hindi voice (`sonic-multilingual`).
+
+*Frontend Dev Note: Never hardcode UI assumptions about the output language. Always read the `X-AI-Language` header to know whether the audio you're playing back is in `hi` or `en`.*
+
+---
+
+## 🎯 3. Gamification Tasks Endpoint
+
+### A. Get Today's Tasks
+**GET** `/api/tasks/today`
+
+Fetches all tasks assigned to the user for the current day (this includes tasks generated by the AI during chat/voice interactions).
+
+**Success Response (200 OK):**
+```json
+[
+  {
+    "id": "uuid-1234",
+    "user_id": "uuid-5678",
+    "description": "Take a 5-minute breathing break",
+    "completed": false,
+    "date": "2023-10-25"
+  }
+]
+```
+
+### B. Complete a Task
+**POST** `/api/tasks/complete`
+
+Marks a specific task as completed.
+
+**Request Body (JSON):**
 ```json
 {
-  "session_id": "user_123_session",
-  "history": [
-    {
-      "date": "2023-10-01",
-      "emotion": "anxiety",
-      "distress_level": 0.75
-    },
-    {
-      "date": "2023-10-02",
-      "emotion": "neutral",
-      "distress_level": 0.40
-    }
-  ]
+  "task_id": "uuid-1234",
+  "completed": true
 }
 ```
 
+---
+
+## 📊 4. Dashboard Analytics Endpoint
+**GET** `/api/dashboard/{session_id}`
+
+Provides historical mood data (currently 14 days of mock data) to render the user's progress graphs on the dashboard page.
+
+**Success Response (200 OK):**
+```json
+[
+  {
+    "date": "2023-10-11",
+    "emotion": "joy",
+    "intensity": 0.85
+  },
+  {
+    "date": "2023-10-12",
+    "emotion": "sadness",
+    "intensity": 0.60
+  }
+]
+```
 **Frontend Implementation Notes:**
-- Plot `date` on the X-axis and `distress_level` (0.0 to 1.0) on the Y-axis using a charting library (like Recharts or Chart.js).
-- You can color-code the data points based on the `emotion` string.
+- Plot `date` on the X-axis and `intensity` (0.0 to 1.0) on the Y-axis using a charting library (like Recharts).
+- Color-code data points based on the `emotion` label.
