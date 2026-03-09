@@ -19,7 +19,10 @@ temp_output_*
 
 # Logs and debug files
 *.log
-*.txt
+crash.txt
+clean*.txt
+out.txt
+*_output.txt
 
 # IDE and OS
 .vscode/
