@@ -21,11 +21,11 @@ SYSTEM_PROMPT = (
     "Respond with warmth, validate feelings, and guide students through "
     "cognitive behavioral techniques when appropriate. Keep responses concise "
     "and supportive. "
-    "IMPORTANT: You MUST ALWAYS reply with a valid JSON object strictly containing TWO keys: "
-    "1. 'response': Your conversational text response. "
+    "IMPORTANT: You MUST ALWAYS reply with a valid JSON object strictly containing THREE keys: "
+    "1. 'response': Your conversational text response. (Write this in the SAME language the user speaks. E.g., if Hindi, use Devanagari script). "
     "2. 'suggested_tasks': A list of 0 to 2 short, actionable gamified tasks for the user "
-    "to complete today (e.g. '5-minute breathing exercise', 'Log your meals', "
-    "or 'Write down one thing you are grateful for')."
+    "to complete today (e.g. '5-minute breathing exercise'). "
+    "3. 'detected_language': A 2-letter ISO code representing the language spoken by the user (e.g., 'en', 'hi', 'bn', 'as')."
 )
 
 MAX_HISTORY_TURNS = 10      # keep last N user+assistant turns per session
@@ -49,9 +49,9 @@ class LLMService:
         self._client = Groq(api_key=api_key)
         print("[LLMService] [OK] Groq client initialized successfully.")
 
-    def get_response(self, message: str, session_id: str) -> tuple[str, list[str]]:
+    def get_response(self, message: str, session_id: str) -> tuple[str, list[str], str]:
         """
-        Generate a counselling response and optional CBT tasks using Groq.
+        Generate a counselling response, tasks, and detect language using Groq.
 
         Parameters
         ----------
@@ -60,7 +60,7 @@ class LLMService:
 
         Returns
         -------
-        Tuple containing (The assistant's response string, List of suggested tasks).
+        Tuple containing (The assistant's response string, List of suggested tasks, Detected language code).
         """
         if self._client is None:
             raise RuntimeError("LLM client not loaded. Call load_model() first.")
@@ -76,6 +76,7 @@ class LLMService:
 
         # Construct messages array
         messages = [{"role": "system", "content": SYSTEM_PROMPT}] + history
+        
 
         try:
             assert self._client is not None
@@ -83,7 +84,7 @@ class LLMService:
                 model=MODEL_NAME,
                 messages=messages,
                 temperature=0.7,
-                max_tokens=600,
+                max_tokens=1024,
                 top_p=0.9,
                 response_format={"type": "json_object"},
             )
@@ -98,16 +99,18 @@ class LLMService:
                     
                 ai_text = parsed.get("response", "I'm here to listen.")
                 ai_tasks = parsed.get("suggested_tasks", [])
+                detected_language = parsed.get("detected_language", "en")
                 if not isinstance(ai_tasks, list):
                     ai_tasks = [str(ai_tasks)] if ai_tasks else []
             except json.JSONDecodeError:
                 # Fallback in case the LLM breaks syntax
                 ai_text = raw_response
                 ai_tasks = []
+                detected_language = "en"
             
             # Store assistant response in history
             history.append({"role": "assistant", "content": ai_text})
-            return ai_text, ai_tasks
+            return ai_text, ai_tasks, detected_language
             
         except Exception as e:
             # Re-raise to be caught by fastapi endpoint

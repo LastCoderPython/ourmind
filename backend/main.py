@@ -1,5 +1,5 @@
 """
-OurMind – AI Mental Health Companion API
+Manas – AI Mental Health Companion API
 =========================================
 FastAPI backend with dual-model emotion/distress analysis (GoEmotions +
 multilingual sentiment) and local LLM counselling (Llama 3.1 8B 4-bit).
@@ -27,14 +27,6 @@ from routers import chat_router, mood_router, task_router, garden_router, commun
 # ── Pydantic Models ──────────────────────────────────────────────────────────
 
 class MoodEntry(BaseModel):
-    date: str
-    emotion: str
-    intensity: float
-
-
-
-
-class MoodEntry(BaseModel):
     """Single data point for the mood dashboard."""
     date: str
     emotion: str
@@ -47,7 +39,7 @@ class MoodEntry(BaseModel):
 async def lifespan(app: FastAPI):
     """Load ML models on startup, clean up on shutdown."""
     print("=" * 60)
-    print("  OurMind Backend – Starting Up")
+    print("  Manas Backend – Starting Up")
     print("=" * 60)
 
     # 1. Load lightweight emotion model first
@@ -71,7 +63,7 @@ async def lifespan(app: FastAPI):
 # ── FastAPI App ──────────────────────────────────────────────────────────────
 
 app = FastAPI(
-    title="OurMind – Mental Health Companion API",
+    title="Manas – Mental Health Companion API",
     description=(
         "AI-powered mental health companion for university students "
         "in North East India. Features real-time emotion analysis and "
@@ -97,7 +89,7 @@ app.add_middleware(
 async def root():
     """Health-check / landing endpoint."""
     return {
-        "service": "OurMind Mental Health Companion API",
+        "service": "Manas Mental Health Companion API",
         "status": "running",
         "version": "1.0.0",
     }

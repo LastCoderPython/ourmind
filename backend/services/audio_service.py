@@ -14,14 +14,8 @@ class AudioService:
         self._groq_client: Groq | None = None
         self._cartesia_client: Cartesia | None = None
         
-        # We mapped specific "Cartesia Sonic" voice IDs.
-        # This is a calm, warm, empathetic American female voice ("Raleigh" or similar)
-        # We can dynamically change this based on the speaker if desired.
-        self.default_voice_id = "a0e99841-438c-4a64-b679-ae501e7d6091" # Example warm voice ID
-        # Wait, let's use a known standard Cartesia voice ID:
-        # "Kentucky Woman" or "Friendly Reading Man", we will use a generic one 
-        # that exists (or replace with any stable cartesia voice ID)
-        self.default_voice_id = "a0e99841-438c-4a64-b679-ae501e7d6091" 
+        # Default English voice ID (used as fallback)
+        self.default_voice_id = "dbfa416f-d5c3-4006-854b-235ef6bdf4fd"
         
     def load_clients(self) -> None:
         """Initialize the API clients from environment variables."""
@@ -53,39 +47,26 @@ class AudioService:
             )
         return transcription
 
-    def generate_speech(self, text: str, output_path: str, detected_emotion: str) -> str:
+    def generate_speech(self, text: str, output_path: str, detected_emotion: str, language: str = "en") -> str:
         """
         Converts AI's text response into highly realistic audio using Cartesia.
-        Dynamically adjusts voice tone based on the detected emotion.
+        Dynamically selects voice and model based on the detected language.
         """
         if not self._cartesia_client:
             raise RuntimeError("Cartesia client not loaded. Cannot generate speech.")
+        
+        # Language-to-voice mapping (Cartesia voice IDs)
+        # Each voice must be compatible with the model used for that language.
+        VOICE_MAP = {
+            "en": {"id": "dbfa416f-d5c3-4006-854b-235ef6bdf4fd", "model": "sonic-english"},
+            "hi": {"id": "20e68f5c-08e5-42d0-8e9b-6e716fd1ae66", "model": "sonic-multilingual", "tts_lang": "hi"},  # Vivek - Composed Voice
+        }
+        
+        voice_entry = VOICE_MAP.get(language, VOICE_MAP["en"])
+        voice_id = voice_entry["id"]
+        model_id = voice_entry["model"]
+        tts_lang = voice_entry.get("tts_lang", language)
             
-        # Map our local `emotion_service` dominant_emotion to Cartesia's emotional prompts
-        # Cartesia supports emotions like: anger, sadness, happiness, fear, surprise
-        emotion_map = {
-            "Anxiety": "calm",
-            "Sadness": "sadness",  # Or 'calm'
-            "Joy": "happiness",
-            "Anger": "calm",
-            "Neutral": None,
-            "Crisis": "sadness" # Empathy for crisis
-        }
-        
-        cartesia_emotion = emotion_map.get(detected_emotion, None)
-        
-        # Prepare the voice configuration
-        # If an emotion is mapped, we pass the emotion tag. Otherwise standard.
-        voice_config = {
-            "mode": "id",
-            "id": "a0e99841-438c-4a64-b679-ae501e7d6091", # Known default voice ID
-        }
-        
-        # Actually Cartesia's raw API takes emotion in experimental controls (based on their latest SDK)
-        # We will use the simplest approach provided by the python SDK 
-        # (Note: Cartesia API updates format quickly, `experimental_controls={ "emotion": [...] }` is common)
-        
-        controls = {}
         # Generate audio using direct Cartesia HTTP REST endpoint for native MP3 support
         url = "https://api.cartesia.ai/tts/bytes"
         
@@ -95,12 +76,16 @@ class AudioService:
             "Cartesia-Version": "2024-06-10"
         }
         
+        # Sanitize: ensure transcript is non-empty for Cartesia
+        if not text or not text.strip():
+            text = "I'm here for you. Let's talk about what's on your mind."
+        
         payload = {
-            "model_id": "sonic-english",
+            "model_id": model_id,
             "transcript": text,
             "voice": {
                 "mode": "id",
-                "id": voice_config["id"]
+                "id": voice_id
             },
             "output_format": {
                 "container": "mp3",
@@ -109,13 +94,26 @@ class AudioService:
             }
         }
         
-        if cartesia_emotion:
-            payload["voice"]["__experimental_controls"] = {
-                "emotion": [cartesia_emotion, "highest"]
-            }
+        # Add language parameter only for sonic-multilingual
+        if model_id == "sonic-multilingual":
+            payload["language"] = tts_lang
+        
+        # Note: sonic-multilingual does NOT support __experimental_controls for emotion
 
-        response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status()
+        import json
+        json_payload = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+        
+        try:
+            response = requests.post(url, headers=headers, data=json_payload)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            # Write the full error to a file for debugging
+            with open("cartesia_error.log", "w", encoding="utf-8") as err_f:
+                err_f.write(f"Status: {e.response.status_code}\n")
+                err_f.write(f"Response: {e.response.text}\n")
+                err_f.write(f"Payload sent: {str(payload)}\n")
+            print(f"[CARTESIA API ERROR]: {e.response.text}")
+            raise
         
         # Save the audio chunk(s) to the output path
         with open(output_path, "wb") as f:

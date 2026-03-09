@@ -7,26 +7,25 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Environment secrets
+# Environment secrets (set via Render dashboard, not baked into image)
 .env
 
 # Test files and temporary audio
-test_voice_api.py
-real_test.mp3
-ai_response.mp3
+test_*.py
+*.mp3
 temp_input_*
 temp_output_*
 
 # Logs and debug files
 *.log
-crash.txt
-clean*.txt
-out.txt
-*_output.txt
+*.txt
+!requirements.txt
 
-# IDE and OS
+# IDE, OS, and Git
 .vscode/
 .git/
 .gitignore
 .dockerignore
 Dockerfile
+render.yaml
+pyrightconfig.json

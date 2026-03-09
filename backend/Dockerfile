@@ -1,4 +1,4 @@
-# ── OurMind Backend – Production Dockerfile ──────────────────────────────────
+# ── Manas Backend – Production Dockerfile ──────────────────────────────────
 # Lightweight build: no PyTorch, uses HuggingFace Inference API for ML models.
 
 FROM python:3.11-slim

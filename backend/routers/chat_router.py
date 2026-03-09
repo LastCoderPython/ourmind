@@ -39,6 +39,7 @@ class ChatResponse(BaseModel):
     session_id: str
     response: str
     suggested_tasks: list[str]
+    detected_language: str
     emotions: list[EmotionScore]
     distress_scores: list[DistressScore]
     dominant_emotion: str
@@ -59,7 +60,7 @@ def chat_endpoint(request: ChatRequest, user_id: str = Depends(get_current_user)
         analysis = emotion_service.analyze(request.message)
 
         # Step 2: LLM Generation
-        ai_response, ai_tasks = llm_service.get_response(request.message, request.session_id)
+        ai_response, ai_tasks, detected_language = llm_service.get_response(request.message, request.session_id)
 
         # Step 3: Save User Message & Assistant Message
         user_msg = {
@@ -110,6 +111,7 @@ def chat_endpoint(request: ChatRequest, user_id: str = Depends(get_current_user)
             session_id=request.session_id,
             response=ai_response,
             suggested_tasks=ai_tasks,
+            detected_language=detected_language,
             emotions=emotion_scores,
             distress_scores=distress_scores_list,
             dominant_emotion=analysis["dominant_emotion"],
@@ -143,14 +145,20 @@ async def voice_chat_endpoint(
             shutil.copyfileobj(audio_file.file, buffer)
             
         # 1. Speech to Text
+        print("[VOICE DEBUG] Step 1: STT...")
         user_text = audio_service.transcribe_audio(temp_input_path)
+        print(f"[VOICE DEBUG] Step 1 DONE. Transcript: {user_text[:50]}")
         
         # 2. Analyze Emotion
+        print("[VOICE DEBUG] Step 2: Emotion...")
         analysis = emotion_service.analyze(user_text)
         detected_emotion = analysis["dominant_emotion"]
+        print(f"[VOICE DEBUG] Step 2 DONE. Emotion: {detected_emotion}")
         
         # 3. Request LLM
-        ai_response, ai_tasks = llm_service.get_response(user_text, session_id)
+        print("[VOICE DEBUG] Step 3: LLM...")
+        ai_response, ai_tasks, detected_language = llm_service.get_response(user_text, session_id)
+        print(f"[VOICE DEBUG] Step 3 DONE. Lang: {detected_language}, Response[:50]: {ai_response[:50]}")
         
         # 4. Save to Database (Graceful degrade if table is missing)
         try:
@@ -189,7 +197,9 @@ async def voice_chat_endpoint(
             print(f"[Supabase Warning] Failed to log messages/tasks to DB: {str(db_e)}")
         
         # 5. Text to Speech (Cartesia)
-        output_file_path = audio_service.generate_speech(ai_response, temp_output_path, detected_emotion)
+        print(f"[VOICE DEBUG] Step 5: TTS with emotion={detected_emotion}, lang={detected_language}...")
+        output_file_path = audio_service.generate_speech(ai_response, temp_output_path, detected_emotion, detected_language)
+        print(f"[VOICE DEBUG] Step 5 DONE. Audio file: {output_file_path}")
         
         # Cleanup input file
         if os.path.exists(temp_input_path):
@@ -198,17 +208,26 @@ async def voice_chat_endpoint(
         # Return file and add background task to clean it up after response
         background_tasks.add_task(os.remove, output_file_path)
         
+        # URL-encode header values: HTTP headers only support ASCII characters.
+        # Hindi transcript from Whisper and LLM responses with emojis crash without encoding.
+        from urllib.parse import quote
+        
         return FileResponse(
             output_file_path, 
             media_type="audio/mpeg", 
             headers={
-                "X-User-Transcript": user_text, 
-                "X-AI-Response": ai_response,
-                "X-AI-Tasks": str(ai_tasks)
+                "X-User-Transcript": quote(user_text, safe=''), 
+                "X-AI-Response": quote(ai_response, safe=''),
+                "X-AI-Tasks": quote(str(ai_tasks), safe=''),
+                "X-AI-Language": detected_language
             } 
         )
         
     except Exception as e:
+        # Write full traceback to file for debugging
+        import traceback as tb
+        with open("voice_debug.log", "w", encoding="utf-8") as log_f:
+            tb.print_exc(file=log_f)
         traceback.print_exc()
         if os.path.exists(temp_input_path):
             os.remove(temp_input_path)
