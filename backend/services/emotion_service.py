@@ -1,24 +1,23 @@
 """
 Emotion & Distress Analysis Service
 ====================================
-Dual-model architecture for robust mental health signal detection:
+Dual-model architecture for robust mental health signal detection,
+using the HuggingFace Inference API (cloud-based, zero local RAM):
 
-1. SamLowe/roberta-base-go_emotions       → 28 fine-grained emotions (English)
+1. SamLowe/roberta-base-go_emotions       → 28 fine-grained emotions
 2. lxyuan/distilbert-base-multilingual-cased-sentiments-student
                                            → Multilingual distress sentiment
-
-Both models run on CUDA for real-time inference.
 """
 
-from transformers import pipeline
-import torch
+import os
+import requests
 from typing import Any
 
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
-EMOTION_MODEL = "SamLowe/roberta-base-go_emotions"
-DISTRESS_MODEL = "lxyuan/distilbert-base-multilingual-cased-sentiments-student"
+EMOTION_API_URL = "https://api-inference.huggingface.co/models/SamLowe/roberta-base-go_emotions"
+DISTRESS_API_URL = "https://api-inference.huggingface.co/models/lxyuan/distilbert-base-multilingual-cased-sentiments-student"
 
 # GoEmotions labels that indicate elevated mental health risk
 CRISIS_EMOTION_LABELS = {"grief", "fear", "sadness", "remorse", "nervousness", "disappointment"}
@@ -60,7 +59,7 @@ HELPLINES = [
 
 class EmotionService:
     """
-    Dual-model emotion + distress analysis on CUDA.
+    Dual-model emotion + distress analysis via HuggingFace Inference API.
 
     Model 1 (GoEmotions): 28-label fine-grained emotion detection.
     Model 2 (Multilingual Sentiment): positive/negative/neutral distress signal
@@ -68,70 +67,75 @@ class EmotionService:
     """
 
     def __init__(self) -> None:
-        self._emotion_pipeline: Any = None
-        self._distress_pipeline: Any = None
+        self._api_token: str | None = None
+        self._headers: dict[str, str] = {}
 
     def load_model(self) -> None:
-        """Load both analysis pipelines onto CPU to save VRAM for the LLM."""
-        device = -1  # Force CPU
-        device_label = "cpu"
+        """Load HuggingFace API token from environment."""
+        self._api_token = os.environ.get("HF_API_TOKEN", "")
+        if not self._api_token:
+            print("[EmotionService] WARNING: HF_API_TOKEN not set! Emotion analysis will fail.")
+        else:
+            print("[EmotionService] [OK] HuggingFace Inference API token loaded.")
 
-        # ── Model 1: GoEmotions (28 labels) ──────────────────────────────
-        print(f"[EmotionService] Loading {EMOTION_MODEL} on {device_label}...")
-        self._emotion_pipeline = pipeline(
-            "text-classification",
-            model=EMOTION_MODEL,
-            top_k=None,
-            device=device,
-            truncation=True,
-        )
-        print("[EmotionService] [OK] GoEmotions model loaded.")
+        self._headers = {"Authorization": f"Bearer {self._api_token}"}
 
-        # ── Model 2: Multilingual Distress Sentiment ─────────────────────
-        print(f"[EmotionService] Loading {DISTRESS_MODEL} on {device_label}...")
-        self._distress_pipeline = pipeline(
-            "text-classification",
-            model=DISTRESS_MODEL,
-            top_k=None,
-            device=device,
-            truncation=True,
-        )
-        print("[EmotionService] [OK] Multilingual distress model loaded.")
+    def _query_hf(self, api_url: str, text: str) -> list[dict[str, Any]]:
+        """Send a request to the HuggingFace Inference API and return results."""
+        try:
+            response = requests.post(
+                api_url,
+                headers=self._headers,
+                json={"inputs": text, "options": {"wait_for_model": True}},
+                timeout=30,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            # HF API returns [[{label, score}, ...]] for text-classification with top_k
+            if isinstance(data, list) and len(data) > 0 and isinstance(data[0], list):
+                return data[0]
+            elif isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict):
+                return data
+            else:
+                print(f"[EmotionService] Unexpected API response format: {type(data)}")
+                return []
+
+        except requests.exceptions.RequestException as e:
+            print(f"[EmotionService] HuggingFace API error: {str(e)}")
+            return []
 
     def analyze(self, text: str) -> dict[str, Any]:
         """
-        Run dual-model analysis on the input text.
+        Run dual-model analysis on the input text via HuggingFace Inference API.
 
         Returns
         -------
         dict with keys:
             emotions         – dict of all 28 GoEmotions label → score
-            distress_scores  – dict of sentiment labels → score (positive/negative/neutral)
+            distress_scores  – dict of sentiment labels → score
             dominant_emotion – str, highest-scoring emotion label
             crisis_trigger   – bool
             crisis_reasons   – list of strings explaining why crisis was triggered
             helplines        – list of helpline dicts (only when crisis)
         """
-        if self._emotion_pipeline is None or self._distress_pipeline is None:
-            raise RuntimeError("Models not loaded. Call load_model() first.")
-
-        truncated = text[:512]  # type: ignore
+        truncated = text[:512]
 
         # ── GoEmotions Analysis ──────────────────────────────────────────
-        emotion_results = self._emotion_pipeline(truncated)
+        emotion_results = self._query_hf(EMOTION_API_URL, truncated)
         emotion_scores: dict[str, float] = {
             item["label"]: round(item["score"], 4)
-            for item in emotion_results[0]
-        }
+            for item in emotion_results
+        } if emotion_results else {"neutral": 1.0}
 
         dominant_emotion = max(emotion_scores.items(), key=lambda x: x[1])[0]
 
         # ── Distress Sentiment Analysis ──────────────────────────────────
-        distress_results = self._distress_pipeline(truncated)
+        distress_results = self._query_hf(DISTRESS_API_URL, truncated)
         distress_scores: dict[str, float] = {
             item["label"]: round(item["score"], 4)
-            for item in distress_results[0]
-        }
+            for item in distress_results
+        } if distress_results else {"neutral": 1.0}
 
         # ── Crisis Detection (dual-signal) ──────────────────────────────
         crisis_reasons: list[str] = []

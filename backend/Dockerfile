@@ -1,12 +1,12 @@
 # ── OurMind Backend – Production Dockerfile ──────────────────────────────────
-# Optimized for Render free tier (limited RAM). Uses CPU-only PyTorch.
+# Lightweight build: no PyTorch, uses HuggingFace Inference API for ML models.
 
 FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies for Python packages
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
@@ -14,10 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements first for Docker layer caching
 COPY requirements.txt .
 
-# Install CPU-only PyTorch first (saves ~1.5GB vs full CUDA build)
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-
-# Install remaining dependencies
+# Install Python dependencies (lightweight — no PyTorch!)
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the application code
