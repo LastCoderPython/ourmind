@@ -5,6 +5,7 @@ backend/.env
 # Ignore Python caches
 __pycache__/
 *.pyc
+*.pyo
 
 # Ignore log files
 *.log
@@ -13,3 +14,17 @@ __pycache__/
 venv/
 venv_311/
 backend/venv_311/
+
+# Temporary audio files
+ai_response.mp3
+temp_input_*
+temp_output_*
+
+# Debug files
+*.txt
+!requirements.txt
+
+# IDE / OS
+.vscode/
+.DS_Store
+Thumbs.db

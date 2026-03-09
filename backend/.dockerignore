@@ -1,0 +1,29 @@
+# Virtual environments
+venv/
+venv_311/
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment secrets
+.env
+
+# Test files and temporary audio
+test_voice_api.py
+real_test.mp3
+ai_response.mp3
+temp_input_*
+temp_output_*
+
+# Logs and debug files
+*.log
+*.txt
+
+# IDE and OS
+.vscode/
+.git/
+.gitignore
+.dockerignore
+Dockerfile
