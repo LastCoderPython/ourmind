@@ -56,8 +56,18 @@ def chat_endpoint(request: ChatRequest, user_id: str = Depends(get_current_user)
     db = get_db_client()
 
     try:
-        # Step 1: Emotion & Distress Triage
-        analysis = emotion_service.analyze(request.message)
+        # Step 1: Emotion & Distress Triage (graceful degradation if HF API is down)
+        try:
+            analysis = emotion_service.analyze(request.message)
+        except Exception as emotion_err:
+            print(f"[Chat] Emotion analysis failed, using defaults: {emotion_err}")
+            analysis = {
+                "emotions": {"neutral": 1.0},
+                "distress_scores": {"neutral": 1.0},
+                "dominant_emotion": "neutral",
+                "crisis_trigger": False,
+                "crisis_reasons": [],
+            }
 
         # Step 2: LLM Generation
         ai_response, ai_tasks, detected_language = llm_service.get_response(request.message, request.session_id)
