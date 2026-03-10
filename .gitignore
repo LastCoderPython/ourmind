@@ -24,6 +24,10 @@ temp_output_*
 *.txt
 !requirements.txt
 
+# Markdown files
+*.md
+!README.md
+
 # IDE / OS
 .vscode/
 .DS_Store
