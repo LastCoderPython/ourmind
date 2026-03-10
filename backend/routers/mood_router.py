@@ -62,7 +62,7 @@ def get_emotional_weather(user_id: str = Depends(get_current_user)):
         logs = response.data
         
         if not logs:
-            return {"weather": "unknown", "emoji": "😶", "description": "Not enough data yet."}
+            return {"overall": "Unknown", "temperature": "", "description": "Not enough data yet."}
 
         # Naive implementation: 
         # If mean intensity of joy/happiness is high -> Sunny
@@ -80,15 +80,15 @@ def get_emotional_weather(user_id: str = Depends(get_current_user)):
         avg_neg = max(0.0, min(1.0, (neg_score / len(logs)) + 0.5))
         
         if avg_neg > 0.8:
-            return {"weather": "storm", "emoji": "⛈️", "description": "You've been experiencing heavy emotional storms lately."}
+            return {"overall": "Stormy", "temperature": "", "description": "You've been experiencing heavy emotional storms lately."}
         elif avg_neg > 0.6:
-            return {"weather": "rain", "emoji": "🌧️", "description": "It's been a rainy, difficult few days."}
+            return {"overall": "Rainy", "temperature": "", "description": "It's been a rainy, difficult few days."}
         elif avg_neg > 0.4:
-            return {"weather": "cloudy", "emoji": "☁️", "description": "Things have felt a bit cloudy and neutral."}
+            return {"overall": "Cloudy", "temperature": "", "description": "Things have felt a bit cloudy and neutral."}
         elif avg_neg > 0.2:
-            return {"weather": "calm", "emoji": "🌤️", "description": "You've been mostly calm recently."}
+            return {"overall": "Cloudy", "temperature": "", "description": "You've been mostly calm recently."}
         else:
-            return {"weather": "sunny", "emoji": "☀️", "description": "It's been very bright and sunny!"}
+            return {"overall": "Sunny", "temperature": "", "description": "It's been very bright and sunny!"}
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

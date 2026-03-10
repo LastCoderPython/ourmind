@@ -12,7 +12,7 @@ class PostRequest(BaseModel):
 
 class ReactRequest(BaseModel):
     post_id: str
-    reaction_type: str # "support", "relate", "proud"
+    reaction_type: str # "support", "growth", "relatable", "strength"
 
 @router.post("/api/posts")
 def create_community_post(request: PostRequest, user_id: str = Depends(get_current_user)):
@@ -47,7 +47,7 @@ def get_recent_posts(user_id: str = Depends(get_current_user)):
         reactions_resp = db.table("reactions").select("*").in_("post_id", post_ids).execute()
         
         # Group reactions
-        reaction_map = {pid: {"support": 0, "relate": 0, "proud": 0} for pid in post_ids}
+        reaction_map = {pid: {"support": 0, "growth": 0, "relatable": 0, "strength": 0} for pid in post_ids}
         for r in reactions_resp.data:
             rtype = r["reaction_type"]
             if rtype in reaction_map[r["post_id"]]:
