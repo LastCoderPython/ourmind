@@ -1,6 +1,6 @@
 ﻿# Manas: AI Companion for Student Mental Wellness 
 
-**Manas** is an AI-powered multidimensional mental health companion designed specifically to tackle the unique mental health challenges faced by university students. It integrates multiple complex Machine Learning pipelines into a single, seamless, and blazingly fast full-stack application.
+**Manas** is an AI-powered multidimensional mental health companion designed specifically to tackle the unique mental health challenges faced by university students. It integrates multiple complex Machine Learning pipelines into a single, seamless, and blazingly fast full-stack application. Also, Adding a **human touch** to the voice-conversational AI.
 
 This document serves as an overview for judges to understand the core working mechanism, architecture, and technology stack of Manas.
 
