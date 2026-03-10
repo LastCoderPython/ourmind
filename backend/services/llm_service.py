@@ -29,7 +29,7 @@ SYSTEM_PROMPT = (
     "1. 'response': Your conversational text response in English (or the user's language if they wrote in a non-English language). "
     "2. 'suggested_tasks': A list of 0 to 2 short, actionable gamified tasks for the user "
     "to complete today (e.g. '5-minute breathing exercise'). "
-    "3. 'detected_language': A 2-letter ISO code representing the language spoken by the user (e.g., 'en', 'hi', 'bn', 'as')."
+    "3. 'detected_language': A 2-letter ISO code representing the language spoken by the user (e.g., 'en', 'hi', 'bn', 'as', 'ta', 'te', 'mr', 'gu')."
 )
 
 MAX_HISTORY_TURNS = 10      # keep last N user+assistant turns per session
