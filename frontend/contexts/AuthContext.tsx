@@ -14,7 +14,7 @@ interface AuthContextType {
     signOut: () => Promise<void>;
 }
 
-const DUMMY_DOMAIN = '@manas.local';
+const DUMMY_DOMAIN = '@manas.app';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
