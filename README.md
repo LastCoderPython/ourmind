@@ -6,7 +6,7 @@ This document serves as an overview for judges to understand the core working me
 
 ---
 
-## ðŸŽ¯ What Manas Does (Core Working)
+## What Manas Does (Core Working)
 
 Manas is not just a chatbot; it is a proactive, empathetic companion paired with a gamified wellness system. The workflow connects three main systems:
 
@@ -36,7 +36,7 @@ Instead of just talking, the AI actively prescribes daily CBT coping tasks (e.g.
 
 ---
 
-## ðŸ—ï¸ Technical Architecture 
+## Technical Architecture 
 
 To achieve this in real-time without latency, the architecture is split into a lightweight Next.js frontend and a hyper-fast Python FastAPI backend.
 
@@ -46,17 +46,17 @@ To achieve this in real-time without latency, the architecture is split into a l
 
 ---
 
-## ðŸ’» Tech Stack Highlights
+## » Tech Stack Highlights
 
 We carefully selected technologies that maximize performance natively while keeping compute and latency overhead incredibly low.
 
-### ðŸŽ¨ Frontend (The User Interface)
+### ¨ Frontend (The User Interface)
 - **Framework:** Next.js 15 (App Router, React 19)
 - **Styling:** Tailwind CSS v4 for a highly responsive, mobile-first design.
 - **Multilingual State:** Fully localized into 3 languages (English, Hindi, Assamese) right out of the box using custom Contexts and dot-notation dictionaries.
 - **Dynamic Layout Adjustments:** Uses real-time `window.visualViewport` tracking so the chat UI perfectly avoids the mobile virtual keyboardâ€”providing a native-app feel on the web.
 
-### ðŸ§  Backend (The AI Engine)
+### Backend (The AI Engine)
 - **Framework:** Python 3.11 with FastAPI (running asynchronous request handlers for max speed).
 - **Database:** Supabase (PostgreSQL with Row-Level Security).
 - **Large Language Model (LLM):** Meta Llama 3.1 (8B), hosted on **Groq Cloud** for lightning-fast token generation.
@@ -66,7 +66,7 @@ We carefully selected technologies that maximize performance natively while keep
 
 ---
 
-## ðŸš€ Why It Wins
+## Why It Wins
 
 1. **Accessibility Above All:** It meets students where they are. They can speak to it in Hindi while walking between classes and get a Hindi audio response immediately. 
 2. **Deep Empathy + Actionable Help:** It doesn't just listen; it detects severe crises securely and prescribes actionable self-care tasks that tangibly grow a virtual plant on their dashboard.
