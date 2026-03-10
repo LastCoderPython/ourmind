@@ -1,234 +1,177 @@
-"use client";
+'use client';
 
-import React, { useState, useRef } from "react";
-import { useBiofeedback } from "@/components/BiofeedbackProvider";
-import { useUser } from "@/components/UserContext";
-import { t } from "@/lib/i18n";
-import { getAvatarForNickname } from "@/lib/avatarUtils";
-
-interface WallPost {
-    id: number;
-    nickname: string;
-    avatarGradient: string;
-    text: string;
-    time: string;
-    reactions: {
-        support: number;
-        growth: number;
-        relate: number;
-        strength: number;
-    };
-    myReaction: string | null;
+import { Header } from '@/components/Header';
+import { Send, PlusCircle } from 'lucide-react';
+import { useEffect, useState, FormEvent } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getPosts, createPost, reactToPost } from '@/lib/apiClient';
+interface Post {
+  id: string;
+  user_id: string;
+  username: string;
+  content: string;
+  created_at: string;
+  reactions: Array<{ reaction_type: string }>;
 }
 
-const sentenceStarters = [
-    "Today I'm grateful for…",
-    "I overcame a challenge by…",
-    "Something that helped me is…",
-    "I want others to know that…",
-    "A small win I had today…",
+const REACTIONS = [
+  { type: 'support', icon: '🫂', label: 'Sending Support' },
+  { type: 'growth', icon: '🌱', label: 'Growth' },
+  { type: 'relatable', icon: '🤝', label: 'Relatable' },
+  { type: 'strength', icon: '🛡️', label: 'Strength' },
 ];
 
-const initialPosts: WallPost[] = [
-    {
-        id: 1,
-        nickname: "QuietRiver",
-        avatarGradient: getAvatarForNickname("QuietRiver").gradient,
-        text: "Today I'm grateful for my friend who stayed with me during a tough time. Small acts of kindness really do make a difference. 💚",
-        time: "2 hours ago",
-        reactions: { support: 12, growth: 5, relate: 8, strength: 3 },
-        myReaction: null,
-    },
-    {
-        id: 2,
-        nickname: "MorningDew",
-        avatarGradient: getAvatarForNickname("MorningDew").gradient,
-        text: "I overcame a challenge by breaking it down into smaller steps. It felt impossible at first, but step-by-step I got through it.",
-        time: "4 hours ago",
-        reactions: { support: 7, growth: 14, relate: 6, strength: 9 },
-        myReaction: null,
-    },
-    {
-        id: 3,
-        nickname: "GentleBreeze",
-        avatarGradient: getAvatarForNickname("GentleBreeze").gradient,
-        text: "Something that helped me is the 4-7-8 breathing technique. I tried it during my exam anxiety and it genuinely calmed me down. 🌬️",
-        time: "6 hours ago",
-        reactions: { support: 4, growth: 8, relate: 15, strength: 2 },
-        myReaction: null,
-    },
-    {
-        id: 4,
-        nickname: "SilentMoon",
-        avatarGradient: getAvatarForNickname("SilentMoon").gradient,
-        text: "A small win I had today — I went for a walk alone and actually enjoyed the silence. Progress is not always loud. 🌙",
-        time: "8 hours ago",
-        reactions: { support: 9, growth: 11, relate: 7, strength: 6 },
-        myReaction: null,
-    },
-];
+export default function CommunityWall() {
+  const { user, nickname } = useAuth();
+  const { t } = useLanguage();
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [newPostContent, setNewPostContent] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-export default function WallPage() {
-    const [posts, setPosts] = useState<WallPost[]>(initialPosts);
-    const [selectedStarter, setSelectedStarter] = useState<string | null>(null);
-    const [newPostText, setNewPostText] = useState("");
-    const { addToast } = useBiofeedback();
-    const { nickname, avatarGradient, language } = useUser();
-    const pulsingRef = useRef<Record<string, boolean>>({});
+  const fetchPosts = async () => {
+    try {
+      const data = await getPosts();
+      setPosts(data || []);
+    } catch (error) {
+      console.error("Failed to fetch posts", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const reactionConfig = [
-        { key: "support", emoji: "🫂", labelKey: "wall.support" },
-        { key: "growth", emoji: "🌱", labelKey: "wall.growth" },
-        { key: "relate", emoji: "🤝", labelKey: "wall.relate" },
-        { key: "strength", emoji: "🛡️", labelKey: "wall.strength" },
-    ];
+  useEffect(() => {
+    if (user) fetchPosts();
+  }, [user]);
 
-    const handleStarterClick = (starter: string) => {
-        if (selectedStarter === starter) {
-            setSelectedStarter(null);
-            setNewPostText("");
-        } else {
-            setSelectedStarter(starter);
-            setNewPostText(starter + " ");
-        }
-    };
+  const handleShare = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!newPostContent.trim() || isSubmitting) return;
 
-    const handlePost = () => {
-        if (!newPostText.trim() || newPostText.trim().length < 10) return;
-        const newPost: WallPost = {
-            id: Date.now(),
-            nickname: nickname || "Anonymous",
-            avatarGradient: avatarGradient || getAvatarForNickname("Anonymous").gradient,
-            text: newPostText.trim(),
-            time: t("wall.justNow", language),
-            reactions: { support: 0, growth: 0, relate: 0, strength: 0 },
-            myReaction: null,
-        };
-        setPosts([newPost, ...posts]);
-        setNewPostText("");
-        setSelectedStarter(null);
-        addToast(`✨ ${t("wall.posted", language)}`);
-    };
+    setIsSubmitting(true);
+    try {
+      // Use the email prefix as a default username snippet
+      const username = nickname || 'Anonymous';
+      await createPost(newPostContent.trim(), username);
+      setNewPostContent('');
+      await fetchPosts(); // Re-fetch to get real ID and timestamps
+    } catch (error) {
+      console.error("Failed to create post", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-    const handleReaction = (postId: number, reactionKey: string) => {
-        // Trigger pulse animation
-        const pulseKey = `${postId}-${reactionKey}`;
-        pulsingRef.current[pulseKey] = true;
-        setTimeout(() => {
-            pulsingRef.current[pulseKey] = false;
-        }, 400);
+  const handleReaction = async (postId: string, type: string) => {
+    // Optimistic update
+    setPosts(prev => prev.map(p => {
+      if (p.id === postId) {
+        return { ...p, reactions: [...p.reactions, { reaction_type: type }] };
+      }
+      return p;
+    }));
 
-        setPosts((prev) =>
-            prev.map((post) => {
-                if (post.id !== postId) return post;
-                const alreadyReacted = post.myReaction === reactionKey;
-                const newReactions = { ...post.reactions };
+    try {
+      await reactToPost(postId, type);
+    } catch (error) {
+      // Revert if failed
+      console.error("Reaction failed");
+      fetchPosts();
+    }
+  };
 
-                // Remove previous reaction
-                if (post.myReaction) {
-                    newReactions[post.myReaction as keyof typeof newReactions] = Math.max(
-                        0,
-                        newReactions[post.myReaction as keyof typeof newReactions] - 1
-                    );
-                }
+  // Helper to count reactions
+  const getReactionCount = (reactions: Array<{ reaction_type: string }>, type: string) =>
+    reactions.filter(r => r.reaction_type === type).length;
 
-                // Add new reaction if different
-                if (!alreadyReacted) {
-                    newReactions[reactionKey as keyof typeof newReactions] += 1;
-                    const reactionMeta = reactionConfig.find((r) => r.key === reactionKey);
-                    if (reactionMeta) {
-                        // Toast: "[User] sent [Reaction] to [Author]!"
-                        addToast(
-                            `${reactionMeta.emoji} ${nickname || "Someone"} sent ${t(reactionMeta.labelKey, language)} to ${post.nickname}!`
-                        );
-                    }
-                }
+  return (
+    <main className="min-h-screen pb-24 bg-transparent">
+      <Header />
 
-                return {
-                    ...post,
-                    reactions: newReactions,
-                    myReaction: alreadyReacted ? null : reactionKey,
-                };
-            })
-        );
-    };
+      <section className="px-6 py-4">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('wall.title')}</h1>
+        <p className="text-slate-500 mt-1">{t('wall.subtitle')}</p>
+      </section>
 
-    return (
-        <div className="page-content">
-            <h1 className="page-title">{t("wall.title", language)}</h1>
-            <p className="page-subtitle">{t("wall.subtitle", language)}</p>
+      {/* Write Post Section */}
+      <section className="px-6 mb-6">
+        <form onSubmit={handleShare} className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-3">
+          <textarea
+            placeholder={t('wall.post_placeholder')}
+            className="w-full bg-slate-50 border-none rounded-2xl resize-none p-4 text-sm focus:ring-1 focus:ring-primary outline-none"
+            rows={3}
+            value={newPostContent}
+            onChange={(e) => setNewPostContent(e.target.value)}
+            disabled={isSubmitting}
+          />
+          <div className="flex justify-between items-center">
+            <button type="button" className="text-slate-400 p-2 hover:bg-slate-50 rounded-full transition-colors">
+              <PlusCircle className="w-5 h-5" />
+            </button>
+            <button
+              type="submit"
+              disabled={!newPostContent.trim() || isSubmitting}
+              className="bg-primary hover:bg-primary-hover text-white px-6 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors disabled:opacity-50"
+            >
+              {isSubmitting ? t('wall.sharing') : t('wall.share_now')} <Send className="w-4 h-4" />
+            </button>
+          </div>
+        </form>
+      </section>
 
-            {/* Post Creator */}
-            <div className="wall-creator" id="wall-post-creator">
-                <div className="wall-creator-title">{t("wall.shareStory", language)}</div>
-                <div className="sentence-starters">
-                    {sentenceStarters.map((starter) => (
-                        <button
-                            key={starter}
-                            className={`starter-tag${selectedStarter === starter ? " active" : ""}`}
-                            onClick={() => handleStarterClick(starter)}
-                        >
-                            {starter}
-                        </button>
-                    ))}
-                </div>
-                <textarea
-                    className="wall-textarea"
-                    placeholder={t("wall.placeholder", language)}
-                    value={newPostText}
-                    onChange={(e) => setNewPostText(e.target.value)}
-                    aria-label="Write a post"
-                    id="wall-textarea"
-                />
-                <div style={{ marginTop: "12px", display: "flex", justifyContent: "flex-end" }}>
-                    <button
-                        className="btn-pill btn-pill-primary"
-                        onClick={handlePost}
-                        disabled={!newPostText.trim() || newPostText.trim().length < 10}
-                        id="wall-post-btn"
-                    >
-                        {t("wall.post", language)}
-                    </button>
-                </div>
-            </div>
-
-            {/* Resilience Feed */}
-            <div id="resilience-feed">
-                {posts.map((post) => (
-                    <div key={post.id} className="wall-post">
-                        <div className="wall-post-header">
-                            <div
-                                className="wall-post-avatar"
-                                style={{ background: post.avatarGradient }}
-                            >
-                                {post.nickname.slice(0, 2).toUpperCase()}
-                            </div>
-                            <span className="wall-post-name">{post.nickname}</span>
-                            <span className="wall-post-time">{post.time}</span>
-                        </div>
-                        <p className="wall-post-text">{post.text}</p>
-                        <div className="reaction-pills">
-                            {reactionConfig.map((r) => {
-                                const isReacted = post.myReaction === r.key;
-                                return (
-                                    <button
-                                        key={r.key}
-                                        className={`reaction-pill${isReacted ? " reacted" : ""}${pulsingRef.current[`${post.id}-${r.key}`] ? " pulse" : ""}`}
-                                        onClick={() => handleReaction(post.id, r.key)}
-                                        aria-label={`React ${t(r.labelKey, language)}`}
-                                    >
-                                        <span>{r.emoji}</span>
-                                        <span>{t(r.labelKey, language)}</span>
-                                        <span className="reaction-count">
-                                            {post.reactions[r.key as keyof typeof post.reactions]}
-                                        </span>
-                                    </button>
-                                );
-                            })}
-                        </div>
+      {/* Feed Section */}
+      <section className="px-6 space-y-4">
+        {loading ? (
+          <div className="text-center py-8 text-slate-400">{t('wall.loading')}</div>
+        ) : posts.length === 0 ? (
+          <div className="text-center py-8 text-slate-400">{t('wall.empty')}</div>
+        ) : (
+          posts.map((post) => {
+            const dateStr = new Date(post.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            return (
+              <div key={post.id} className="bg-white p-5 rounded-[24px] shadow-sm border border-slate-100">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-200 to-indigo-200 flex items-center justify-center font-bold text-indigo-700">
+                      {post.username.substring(0, 2).toUpperCase()}
                     </div>
-                ))}
-            </div>
-        </div>
-    );
+                    <div>
+                      <p className="font-bold text-slate-800 text-sm">{post.username}</p>
+                      <p className="text-[11px] text-slate-400 font-medium">{dateStr}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-slate-600 text-sm leading-relaxed mb-4 whitespace-pre-wrap">
+                  {post.content}
+                </p>
+
+                <div className="flex items-center gap-2 pt-3 border-t border-slate-50 flex-wrap">
+                  {REACTIONS.map((r) => {
+                    const count = getReactionCount(post.reactions, r.type);
+                    const isActive = count > 0;
+                    return (
+                      <button
+                        key={r.type}
+                        onClick={() => handleReaction(post.id, r.type)}
+                        title={r.label}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${isActive
+                          ? 'bg-primary/10 text-primary ring-1 ring-primary/20'
+                          : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                          }`}
+                      >
+                        <span className="text-sm">{r.icon}</span>
+                        <span>{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </section>
+    </main>
+  );
 }

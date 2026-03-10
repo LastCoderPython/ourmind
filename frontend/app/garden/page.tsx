@@ -1,155 +1,126 @@
 'use client';
 
-// Garden Page with Backend Integration
-
-import { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
-import { Sun } from 'lucide-react';
-import { gardenApi } from '@/lib/api/garden';
-import type { GardenResponse } from '@/lib/api/types';
+import { Droplet, Sun, Wind } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getGarden } from '@/lib/apiClient';
 
-// Mock data for when backend is not available
-const mockGarden: GardenResponse = {
-  plant_stage: 2,
-  health_score: 77,
-  stage_name: 'Sprout',
-  progress_percentage: 73,
-};
-
-export default function GardenPage() {
-  const [garden, setGarden] = useState<GardenResponse>(mockGarden);
-  const [loading, setLoading] = useState(false);
-  const [usingMock, setUsingMock] = useState(false);
+export default function Garden() {
+  const { user } = useAuth();
+  const { t } = useLanguage();
+  const [garden, setGarden] = useState<{ plant_stage: number; health_score: number; last_watered: string | null } | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchGarden() {
-      setLoading(true);
       try {
-        const data = await gardenApi.getGardenState();
+        const data = await getGarden();
         setGarden(data);
-        setUsingMock(false);
       } catch (error) {
-        console.log('Using mock garden data (backend not connected)');
-        setGarden(mockGarden);
-        setUsingMock(true);
+        console.error("Failed to fetch garden", error);
       } finally {
         setLoading(false);
       }
     }
-    fetchGarden();
-  }, []);
+    if (user) fetchGarden();
+  }, [user]);
 
-  if (loading) {
-    return (
-      <main className="min-h-screen pb-24">
-        <Header />
-        <div className="px-6 py-8 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-primary)]"></div>
-        </div>
-      </main>
-    );
-  }
+  // Derive visual representation from plant_stage
+  const stageKeys = ['seed', 'sprout', 'sapling', 'young_tree', 'tree', 'flourishing'];
+  const stageVisuals = stageKeys.map(key => ({
+    name: t(`garden.stages.${key}`),
+    emoji: key === 'seed' ? '🌰' : key === 'sprout' ? '🌱' : key === 'sapling' ? '🌿' : key === 'young_tree' ? '🪴' : key === 'tree' ? '🌳' : '🌸',
+    text: t(`garden.stage_text.${key}`),
+  }));
 
-  const stageNames: Record<number, string> = {
-    1: 'Seed',
-    2: 'Sprout',
-    3: 'Young Plant',
-    4: 'Tree',
-    5: 'Flowering Tree',
-    6: 'Flourishing Tree',
-  };
+  const stageIndex = garden ? Math.min(Math.max(garden.plant_stage - 1, 0), 5) : 0;
+  const visual = stageVisuals[stageIndex];
 
-  const plantEmojis: Record<number, string> = {
-    1: '🌰',
-    2: '🌱',
-    3: '🌿',
-    4: '🌳',
-    5: '🌸',
-    6: '🌺',
-  };
-
-  const stageName = stageNames[garden.plant_stage] || 'Sprout';
-  const emoji = plantEmojis[garden.plant_stage] || '🌱';
+  const healthScore = Math.round(garden?.health_score || 0);
 
   return (
-    <main className="min-h-screen pb-24">
+    <main className="min-h-screen flex flex-col pb-24">
       <Header />
 
-      <section className="px-6 py-4">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Mind Garden</h1>
-        <p className="text-slate-500 mt-1">Watch your emotional wellness grow</p>
-      </section>
+      {/* 3D-ish Garden Area Container */}
+      <div className="flex-1 bg-gradient-to-b from-blue-50/50 to-emerald-50/50 relative px-6 py-8 flex flex-col items-center justify-center min-h-[400px]">
+        {/* Background Decorative Elements */}
+        <div className="absolute top-10 left-10 w-24 h-24 bg-white/40 rounded-full blur-2xl"></div>
+        <div className="absolute top-20 right-10 w-32 h-32 bg-yellow-100/40 rounded-full blur-3xl"></div>
 
-      <section className="px-6 py-2">
-        <div className="relative w-full aspect-[4/5] rounded-[24px] overflow-hidden shadow-sm bg-gradient-to-b from-sky-100 to-emerald-50 border border-white/50">
-          <div className="absolute top-8 right-8 text-amber-400">
-            <Sun className="w-16 h-16 opacity-60 fill-current" />
+        {/* The Plant */}
+        <div className="relative z-10 flex flex-col items-center gap-6">
+          <div className="w-48 h-48 bg-white/80 backdrop-blur-sm rounded-full shadow-[0_20px_40px_-15px_rgba(16,185,129,0.2)] border border-white flex items-center justify-center relative">
+            <div className="absolute inset-0 rounded-full border-4 border-emerald-50 m-2"></div>
+            {/* Pulsing effect behind plant */}
+            <div className="absolute inset-4 rounded-full bg-emerald-100/50 animate-pulse"></div>
+
+            <span className="text-7xl relative z-10 filter drop-shadow-md transform transition-transform hover:scale-110 duration-500">
+              {loading ? "🌱" : visual.emoji}
+            </span>
           </div>
 
-          <div className="absolute inset-0 flex flex-col items-center justify-center pt-12">
-            <div className="text-center mb-8">
-              <span className="text-xs font-medium uppercase tracking-widest text-slate-400">
-                Stage {garden.plant_stage}
-              </span>
-              <h2 className="text-2xl font-bold text-slate-800">{stageName}</h2>
-            </div>
-
-            <div className="relative group">
-              <div className="absolute -inset-4 bg-white/40 rounded-full blur-xl"></div>
-              <div className="text-8xl relative">{emoji}</div>
-            </div>
-          </div>
-
-          <div className="absolute bottom-0 inset-x-0 p-6 bg-white/30 backdrop-blur-md border-t border-white/40">
-            <div className="flex justify-between items-end mb-2">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Health Score</p>
-                <p className="text-2xl font-bold text-slate-800">{garden.health_score}%</p>
-              </div>
-              <p className="text-[10px] font-medium text-slate-500 pb-1">
-                Progress: {garden.progress_percentage}%
-              </p>
-            </div>
-
-            <div className="w-full h-3 bg-white/50 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-emerald-600/70 rounded-full transition-all duration-1000"
-                style={{ width: `${garden.progress_percentage}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="px-6 py-4">
-        <div className="bg-amber-50 border border-amber-100 p-5 rounded-2xl flex items-start gap-3">
-          <span className="text-2xl">{emoji}</span>
-          <p className="text-sm leading-relaxed text-amber-900/80 font-medium">
-            Your tree is growing because you showed up today. Keep going!
-          </p>
-        </div>
-      </section>
-
-      <section className="px-6 py-2 grid grid-cols-2 gap-4">
-        <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm">
-          <p className="text-3xl font-bold text-slate-800">{garden.plant_stage}</p>
-          <p className="text-xs font-medium text-slate-500 mt-1">Growth Stage</p>
-        </div>
-        <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm">
-          <p className="text-3xl font-bold text-slate-800">{garden.health_score}%</p>
-          <p className="text-xs font-medium text-slate-500 mt-1">Health Score</p>
-        </div>
-      </section>
-
-      {usingMock && (
-        <section className="px-6 py-4">
-          <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
-            <p className="text-xs text-blue-700">
-              ℹ️ Using demo data. Connect to backend to see your real garden progress.
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-bold text-slate-800">
+              {loading ? t('garden.loading') : visual.name}
+            </h2>
+            <p className="text-slate-500 font-medium max-w-[200px]">
+              {loading ? t('garden.loading_desc') : visual.text}
             </p>
           </div>
-        </section>
-      )}
+        </div>
+      </div>
+
+      {/* Stats/Controls Area */}
+      <div className="px-6 -mt-6 relative z-20 space-y-6">
+        {/* Health Progress Card */}
+        <div className="bg-white rounded-[32px] p-6 shadow-xl shadow-slate-200/50 border border-slate-100/50 backdrop-blur-xl">
+          <div className="flex justify-between items-end mb-4">
+            <div>
+              <p className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">{t('garden.overall_health')}</p>
+              <h3 className="text-3xl font-black text-slate-800 tracking-tight">
+                {loading ? "-" : healthScore}%
+              </h3>
+            </div>
+            <div className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl text-sm font-bold border border-emerald-100/50">
+              {loading ? "..." : (healthScore > 80 ? t('garden.thriving') : healthScore > 50 ? t('garden.growing') : t('garden.needs_care'))}
+            </div>
+          </div>
+          <div className="w-full bg-slate-100 h-4 rounded-full overflow-hidden p-0.5">
+            <div
+              className="bg-gradient-to-r from-emerald-400 to-emerald-500 h-full rounded-full transition-all duration-1000 relative shadow-[0_2px_10px_rgba(16,185,129,0.3)]"
+              style={{ width: `${loading ? 0 : healthScore}%` }}
+            >
+              <div className="absolute inset-0 bg-white/20 w-full h-full transform -skew-x-12 translate-x-full animate-[shimmer_2s_infinite]"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Environmental Factors Container */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-3">
+            <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500">
+              <Droplet className="w-6 h-6" />
+            </div>
+            <div className="text-center">
+              <p className="font-bold text-slate-800">{loading ? "-" : t('garden.watered')}</p>
+              <p className="text-xs text-slate-400 font-medium">{t('garden.daily_task')}</p>
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center justify-center gap-3">
+            <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500">
+              <Sun className="w-6 h-6" />
+            </div>
+            <div className="text-center">
+              <p className="font-bold text-slate-800">{loading ? "-" : t('garden.sunshine')}</p>
+              <p className="text-xs text-slate-400 font-medium">{t('garden.mood_log')}</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }

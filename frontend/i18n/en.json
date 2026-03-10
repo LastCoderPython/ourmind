@@ -1,0 +1,148 @@
+{
+    "nav": {
+        "home": "Home",
+        "chat": "Chat",
+        "garden": "Garden",
+        "stats": "Stats",
+        "library": "Library",
+        "wall": "Wall"
+    },
+    "dashboard": {
+        "greeting": "Good to see you",
+        "subtitle": "How are you feeling today?",
+        "weather_loading": "Loading...",
+        "weather_unknown": "Unknown",
+        "weather_loading_desc": "Checking your emotional forecast...",
+        "weather_no_data": "Not enough data yet.",
+        "garden_title": "Your Garden",
+        "garden_loading": "Loading...",
+        "tasks_title": "Today's Self-Care Plan",
+        "tasks_loading": "Loading tasks...",
+        "tasks_empty": "No tasks for today yet.",
+        "tasks_placeholder": "Add a task...",
+        "cta_chat": "Talk to AI Companion"
+    },
+    "chat": {
+        "welcome": "Hey there 🌿 Welcome to your safe space. I'm here to listen and help you build emotional resilience.",
+        "welcome_question": "How are you feeling today?",
+        "placeholder": "Type a message...",
+        "crisis_message": "It sounds like you're going through a really difficult time.",
+        "thinking": "Thinking...",
+        "voice_demo_transcript": "This is a demo voice transcript — no real audio was processed.",
+        "voice_demo_response": "In demo mode, voice responses are simulated. Connect the backend to hear real AI voice responses! 🎙️"
+    },
+    "garden": {
+        "overall_health": "Overall Health",
+        "thriving": "Thriving",
+        "growing": "Growing",
+        "needs_care": "Needs Care",
+        "watered": "Watered",
+        "daily_task": "Daily Task",
+        "sunshine": "Sunshine",
+        "mood_log": "Mood Log",
+        "loading": "Loading...",
+        "loading_desc": "Checking on your plant...",
+        "stages": {
+            "seed": "Seed",
+            "sprout": "Sprout",
+            "sapling": "Sapling",
+            "young_tree": "Young Tree",
+            "tree": "Tree",
+            "flourishing": "Flourishing Tree"
+        },
+        "stage_text": {
+            "seed": "Your seed is planted and resting.",
+            "sprout": "A tiny sprout has emerged!",
+            "sapling": "Your sapling is growing strong leaves.",
+            "young_tree": "It's developing into a sturdy young tree.",
+            "tree": "A beautiful, strong tree stands tall.",
+            "flourishing": "Your tree is flourishing with immense beauty."
+        }
+    },
+    "stats": {
+        "title": "Your Insights",
+        "subtitle": "Understanding your patterns",
+        "mood_history": "Mood History",
+        "last_7_days": "Last 7 days",
+        "loading": "Loading your history...",
+        "no_data": "Not enough data yet. Log your mood to see insights!",
+        "average_mood": "Average Mood",
+        "current_streak": "Current Streak",
+        "days": "Days",
+        "moods": {
+            "great": "Great",
+            "good": "Good",
+            "okay": "Okay",
+            "bad": "Bad",
+            "terrible": "Terrible"
+        }
+    },
+    "library": {
+        "title": "Coping Library",
+        "subtitle": "Personalized strategies for your resilience toolkit",
+        "strategies": {
+            "breathing_title": "4-7-8 Breathing",
+            "breathing_desc": "Calm your nervous system with this timed breathing pattern.",
+            "breathing_tag": "Breathing",
+            "journaling_title": "Journaling Prompts",
+            "journaling_desc": "Express your thoughts freely with guided writing exercises.",
+            "journaling_tag": "Writing",
+            "grounding_title": "Grounding 5-4-3-2-1",
+            "grounding_desc": "Reconnect with the present using your five senses.",
+            "grounding_tag": "Mindfulness",
+            "relaxation_title": "Progressive Relaxation",
+            "relaxation_desc": "Release physical tension from head to toe methodically.",
+            "relaxation_tag": "Body",
+            "reframing_title": "Thought Reframing",
+            "reframing_desc": "Challenge negative thoughts using CBT cognitive restructuring.",
+            "reframing_tag": "CBT",
+            "gratitude_title": "Gratitude Practice",
+            "gratitude_desc": "Shift focus to positivity by noting three good things daily.",
+            "gratitude_tag": "Positivity",
+            "visualization_title": "Safe Space Visualization",
+            "visualization_desc": "Imagine a calm, secure place whenever you feel overwhelmed.",
+            "visualization_tag": "Imagery",
+            "compassion_title": "Self-Compassion Letter",
+            "compassion_desc": "Write yourself a letter with the kindness you'd give a friend.",
+            "compassion_tag": "Self-Care"
+        }
+    },
+    "wall": {
+        "title": "Community",
+        "subtitle": "You are not alone in this journey",
+        "post_placeholder": "Share a thought, win, or struggle...",
+        "share_now": "Share Now",
+        "sharing": "Sharing...",
+        "loading": "Loading community posts...",
+        "empty": "No posts yet. Be the first to share!",
+        "reactions": {
+            "support": "Sending Support",
+            "growth": "Growth",
+            "relatable": "Relatable",
+            "strength": "Strength"
+        }
+    },
+    "login": {
+        "welcome": "Welcome to",
+        "app_name": "Manas",
+        "tagline": "Your safe space for emotional wellness",
+        "nickname_label": "Nickname",
+        "nickname_placeholder": "e.g. QuietRiver",
+        "password_label": "Password",
+        "password_placeholder": "Min 6 characters",
+        "sign_in": "Sign In",
+        "sign_up": "Create Account",
+        "signing_in": "Signing in...",
+        "creating": "Creating account...",
+        "toggle_to_signup": "New here? Create an account",
+        "toggle_to_signin": "Already have an account? Sign in",
+        "privacy_title": "🔒 Your Privacy",
+        "privacy_text": "We never collect your real name or email. Your nickname is your identity. Warning: If you forget your password, it cannot be recovered."
+    },
+    "common": {
+        "loading": "Loading...",
+        "error": "Something went wrong",
+        "retry": "Try again",
+        "anonymous": "Anonymous"
+    }
+}

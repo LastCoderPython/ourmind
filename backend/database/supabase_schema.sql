@@ -1,5 +1,5 @@
 -- =========================================================================
--- OurMind Backend Supabase SQL Schema
+-- Manas Backend Supabase SQL Schema
 -- Run this in your Supabase SQL Editor to initialize all necessary tables.
 -- =========================================================================
 

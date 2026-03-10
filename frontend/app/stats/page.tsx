@@ -1,188 +1,192 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
+import { Header } from '@/components/Header';
+import { Calendar, ChevronRight, TrendingUp } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getMoodHistory } from '@/lib/apiClient';
 import {
-    XAxis,
-    YAxis,
-    Tooltip,
-    ResponsiveContainer,
-    Area,
-    AreaChart,
-} from "recharts";
-import { Flame, TrendingUp } from "lucide-react";
-import { useUser } from "@/components/UserContext";
-import { t } from "@/lib/i18n";
-import { AssessmentFlow } from "@/components/AssessmentFlow";
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from 'recharts';
 
-interface TrendPoint {
-    day: string;
-    score: number;
-}
-
-const initialTrendData: TrendPoint[] = [
-    { day: "Mon", score: 5 },
-    { day: "Tue", score: 6 },
-    { day: "Wed", score: 4 },
-    { day: "Thu", score: 7 },
-    { day: "Fri", score: 6 },
-    { day: "Sat", score: 8 },
-];
-
-const moodLabels: Record<number, string> = {
-    1: "Very Low",
-    2: "Low",
-    3: "Struggling",
-    4: "Below Average",
-    5: "Neutral",
-    6: "Okay",
-    7: "Good",
-    8: "Great",
-    9: "Excellent",
-    10: "Thriving",
+// Helper to map mood strings to numerical values for charting
+const moodToValue = {
+  'great': 5,
+  'good': 4,
+  'okay': 3,
+  'bad': 2,
+  'terrible': 1
 };
 
-function getMoodEmoji(score: number): string {
-    if (score <= 2) return "😔";
-    if (score <= 4) return "😐";
-    if (score <= 6) return "🙂";
-    if (score <= 8) return "😊";
-    return "🌟";
-}
+const valueToMood = {
+  5: 'great',
+  4: 'good',
+  3: 'okay',
+  2: 'bad',
+  1: 'terrible'
+};
 
-const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+export default function Stats() {
+  const { user } = useAuth();
+  const { t } = useLanguage();
+  const [moodData, setMoodData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) => {
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const history = await getMoodHistory();
+        if (history && history.length > 0) {
+          // Format data for Recharts
+          const formatted = history.map((entry: any) => {
+            const date = new Date(entry.date);
+            return {
+              name: date.toLocaleDateString('en-US', { weekday: 'short' }), // "Mon", "Tue"
+              value: moodToValue[entry.mood as keyof typeof moodToValue] || 3,
+              originalMood: entry.mood,
+              date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            };
+          }).reverse(); // Ascending chronological order
+          setMoodData(formatted);
+        }
+      } catch (error) {
+        console.error("Failed to fetch stats", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    if (user) fetchStats();
+  }, [user]);
+
+  // Calculate average mood
+  const avgValue = moodData.length > 0
+    ? Math.round(moodData.reduce((acc, curr) => acc + curr.value, 0) / moodData.length)
+    : 0;
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-        return (
-            <div
-                style={{
-                    background: "rgba(255,255,255,0.92)",
-                    backdropFilter: "blur(12px)",
-                    borderRadius: "16px",
-                    padding: "10px 16px",
-                    boxShadow: "0 4px 16px rgba(74,53,37,0.1)",
-                    border: "1px solid rgba(74,53,37,0.08)",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    color: "#4A3525",
-                }}
-            >
-                <div>{label}</div>
-                <div style={{ color: "#90B47A", fontSize: "16px", fontWeight: 800 }}>
-                    {payload[0].value}/10
-                </div>
-            </div>
-        );
+      const data = payload[0].payload;
+      return (
+        <div className="bg-white p-3 rounded-xl shadow-lg border border-slate-100">
+          <p className="text-slate-500 font-medium text-xs mb-1">{data.date}</p>
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-800 capitalize">{data.originalMood}</span>
+            <span className="text-xl">
+              {data.value === 5 ? '🤩' : data.value === 4 ? '😊' : data.value === 3 ? '😐' : data.value === 2 ? '😔' : '😢'}
+            </span>
+          </div>
+        </div>
+      );
     }
     return null;
-};
+  };
 
-export default function StatsPage() {
-    const { language } = useUser();
-    const [showAssessment, setShowAssessment] = useState(false);
-    const [currentScore, setCurrentScore] = useState(7);
-    const [streakDays, setStreakDays] = useState(12);
-    const [trendData, setTrendData] = useState<TrendPoint[]>(initialTrendData);
+  return (
+    <main className="min-h-screen pb-24">
+      <Header />
 
-    // Check if user has already assessed today
-    useEffect(() => {
-        const assessedDate = sessionStorage.getItem("ourmind_assessed");
-        const today = new Date().toISOString().split("T")[0];
-        if (assessedDate !== today) {
-            // Small delay so the page renders first
-            const timer = setTimeout(() => setShowAssessment(true), 600);
-            return () => clearTimeout(timer);
-        }
-    }, []);
+      <section className="px-6 py-4">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('stats.title')}</h1>
+        <p className="text-slate-500 mt-1">{t('stats.subtitle')}</p>
+      </section>
 
-    const handleAssessmentSubmit = (scores: { mood: number; sleep: number; stress: number }) => {
-        const avg = Math.round((scores.mood + scores.sleep + (11 - scores.stress)) / 3);
-        setCurrentScore(avg);
+      <div className="px-6 space-y-6">
 
-        // Add today's data point to the trend
-        const today = dayNames[new Date().getDay()];
-        setTrendData((prev) => [...prev, { day: today, score: avg }]);
+        {/* Mood Graph Card */}
+        <section className="space-y-4">
+          <div className="flex justify-between items-center px-1">
+            <h2 className="text-lg font-semibold text-slate-800">{t('stats.mood_history')}</h2>
+            <button className="text-sm font-medium text-primary flex items-center gap-1">
+              {t('stats.last_7_days')} <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
 
-        // Increment streak
-        setStreakDays((prev) => prev + 1);
-
-        setShowAssessment(false);
-    };
-
-    return (
-        <div className="page-content">
-            {showAssessment && (
-                <AssessmentFlow onSubmit={handleAssessmentSubmit} />
-            )}
-
-            <h1 className="page-title">{t("stats.title", language)}</h1>
-            <p className="page-subtitle">{t("stats.subtitle", language)}</p>
-
-            {/* Mood Score Card */}
-            <div className="score-card section-gap" id="mood-score-card">
-                <div className="score-label">{t("stats.moodScore", language)}</div>
-                <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
-                    <div className="score-value">{currentScore}</div>
-                    <span style={{ fontSize: "20px", opacity: 0.7 }}>/10</span>
-                </div>
-                <div className="score-subtitle">
-                    {getMoodEmoji(currentScore)} {moodLabels[currentScore]}
-                </div>
-            </div>
-
-            {/* Streak Counter */}
-            <div className="streak-card section-gap" id="streak-counter">
-                <div className="streak-icon">
-                    <Flame size={24} />
-                </div>
-                <div>
-                    <div className="streak-count">{streakDays} days</div>
-                    <div className="streak-label">{t("stats.streak", language)}</div>
-                </div>
-            </div>
-
-            {/* Trend Graph */}
-            <div className="chart-card" id="trend-graph">
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
-                    <TrendingUp size={18} style={{ color: "#90B47A" }} />
-                    <span className="chart-title" style={{ margin: 0 }}>
-                        {t("stats.weeklyTrend", language)}
-                    </span>
-                </div>
-                <ResponsiveContainer width="100%" height={200}>
-                    <AreaChart data={trendData}>
-                        <defs>
-                            <linearGradient id="moodGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#90B47A" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#90B47A" stopOpacity={0} />
-                            </linearGradient>
-                        </defs>
-                        <XAxis
-                            dataKey="day"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: "#A89585", fontSize: 12, fontWeight: 600 }}
-                        />
-                        <YAxis
-                            domain={[0, 10]}
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: "#A89585", fontSize: 11 }}
-                            width={24}
-                        />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Area
-                            type="monotone"
-                            dataKey="score"
-                            stroke="#90B47A"
-                            strokeWidth={3}
-                            fill="url(#moodGradient)"
-                            dot={{ fill: "#90B47A", strokeWidth: 2, stroke: "#fff", r: 5 }}
-                            activeDot={{ r: 7, fill: "#90B47A", stroke: "#fff", strokeWidth: 2 }}
-                        />
-                    </AreaChart>
+          <div className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100">
+            {loading ? (
+              <div className="h-48 flex items-center justify-center text-slate-400">{t('stats.loading')}</div>
+            ) : moodData.length === 0 ? (
+              <div className="h-48 flex items-center justify-center text-slate-400 text-center px-4">
+                {t('stats.no_data')}
+              </div>
+            ) : (
+              <div className="h-48 w-full relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={moodData} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#94a3b8', fontSize: 12 }}
+                      dy={10}
+                    />
+                    <YAxis
+                      domain={[1, 5]}
+                      ticks={[1, 2, 3, 4, 5]}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#94a3b8', fontSize: 12 }}
+                      tickFormatter={(val) => {
+                        if (val === 5) return 'Great';
+                        if (val === 3) return 'Okay';
+                        if (val === 1) return 'Bad';
+                        return '';
+                      }}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke="#10b981"
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorValue)"
+                      activeDot={{ r: 6, strokeWidth: 0, fill: '#10b981' }}
+                    />
+                  </AreaChart>
                 </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Quick Stats Grid */}
+        <section className="grid grid-cols-2 gap-4">
+          <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center mb-3">
+              <TrendingUp className="w-5 h-5" />
             </div>
-        </div>
-    );
+            <p className="text-sm font-medium text-slate-500 mb-1">{t('stats.average_mood')}</p>
+            <p className="text-xl font-bold text-slate-800 capitalize">
+              {loading ? "..." : (avgValue > 0 ? valueToMood[avgValue as keyof typeof valueToMood] : "-")}
+            </p>
+          </div>
+
+          <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center mb-3">
+              <Calendar className="w-5 h-5" />
+            </div>
+            <p className="text-sm font-medium text-slate-500 mb-1">{t('stats.current_streak')}</p>
+            <p className="text-xl font-bold text-slate-800">
+              {loading ? "..." : `${moodData.length} ${t('stats.days')}`}
+            </p>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  );
 }
