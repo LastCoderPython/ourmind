@@ -43,19 +43,27 @@ EMOTION_MAP = {
     "neutral": "neutral",
 }
 
-# Speed adjustments based on emotional context
+# Speed adjustments based on emotional context (Cartesia expects float: 0.5 - 2.0)
 EMOTION_SPEED_MAP = {
-    "sad": "slowest",
-    "melancholic": "slowest",
-    "peaceful": "slow",
-    "calm": "slow",
-    "sympathetic": "slow",
-    "anxious": "normal",
-    "scared": "normal",
-    "excited": "fast",
-    "enthusiastic": "fast",
-    "happy": "normal",
-    "neutral": "normal",
+    "sad": 0.8,
+    "melancholic": 0.75,
+    "peaceful": 0.85,
+    "calm": 0.85,
+    "sympathetic": 0.85,
+    "anxious": 1.0,
+    "scared": 1.0,
+    "excited": 1.15,
+    "enthusiastic": 1.1,
+    "happy": 1.0,
+    "neutral": 1.0,
+}
+
+# Languages supported by Cartesia Sonic 3 (42 languages)
+SUPPORTED_TTS_LANGUAGES = {
+    "en", "hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa",
+    "fr", "de", "es", "it", "pt", "nl", "ru", "uk", "pl", "sv",
+    "da", "fi", "tr", "el", "cs", "sk", "ro", "bg", "hr",
+    "zh", "ja", "ko", "ms", "tl", "ar", "he",
 }
 
 
@@ -121,11 +129,14 @@ class AudioService:
 
         voice_id = VOICE_MAP.get(language, VOICE_MAP["en"])
 
+        # ── Validate language (fallback to English for unsupported ones) ─
+        tts_language = language if language in SUPPORTED_TTS_LANGUAGES else "en"
+
         # ── Map detected emotion to Cartesia emotion tag ────────────────
         cartesia_emotion = EMOTION_MAP.get(detected_emotion, "neutral")
-        speed = EMOTION_SPEED_MAP.get(cartesia_emotion, "normal")
+        speed = EMOTION_SPEED_MAP.get(cartesia_emotion, 1.0)
 
-        print(f"[TTS] Emotion: {detected_emotion} → Cartesia: {cartesia_emotion}, Speed: {speed}, Lang: {language}")
+        print(f"[TTS] Emotion: {detected_emotion} → Cartesia: {cartesia_emotion}, Speed: {speed}, Lang: {language} → TTS: {tts_language}")
 
         # ── Sanitize transcript ─────────────────────────────────────────
         if not text or not text.strip():
@@ -152,7 +163,7 @@ class AudioService:
                 "encoding": "pcm_f32le",
                 "sample_rate": 44100
             },
-            "language": language,
+            "language": tts_language,
             "generation_config": {
                 "emotion": cartesia_emotion,
                 "speed": speed,
