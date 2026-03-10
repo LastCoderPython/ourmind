@@ -1,4 +1,5 @@
 import os
+import base64
 import jwt
 from fastapi import HTTPException, Security, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -6,12 +7,16 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 security = HTTPBearer()
 
 # IMPORTANT: The JWT secret from your Supabase project settings. 
-# Defaults to a placeholder to prevent crashes before you set the real one.
-SUPABASE_JWT_SECRET = os.environ.get("SUPABASE_JWT_SECRET", "super-secret-jwt-token-with-at-least-32-characters-long")
+# Supabase provides it as a base64-encoded string — we must decode it.
+_raw_secret = os.environ.get("SUPABASE_JWT_SECRET", "super-secret-jwt-token-with-at-least-32-characters-long")
 
-# Debug: Log whether the secret is set at startup
-_secret_preview = f"{SUPABASE_JWT_SECRET[:4]}...{SUPABASE_JWT_SECRET[-4:]}" if len(SUPABASE_JWT_SECRET) > 8 else "TOO_SHORT"
-print(f"[Auth] JWT Secret loaded: {_secret_preview} (len={len(SUPABASE_JWT_SECRET)})")
+# Base64-decode if it looks base64-encoded (ends with = or has length divisible by 4)
+try:
+    SUPABASE_JWT_SECRET = base64.b64decode(_raw_secret)
+    print(f"[Auth] JWT Secret loaded and base64-decoded (raw_len={len(_raw_secret)}, decoded_len={len(SUPABASE_JWT_SECRET)})")
+except Exception:
+    SUPABASE_JWT_SECRET = _raw_secret
+    print(f"[Auth] JWT Secret loaded as plain string (len={len(SUPABASE_JWT_SECRET)})")
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> str:
     """
@@ -38,7 +43,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
         print(f"[Auth ERROR] Token EXPIRED")
         raise HTTPException(status_code=401, detail="Authentication token has expired")
     except jwt.InvalidSignatureError:
-        print(f"[Auth ERROR] INVALID SIGNATURE – JWT secret mismatch! Secret preview: {_secret_preview}")
+        print(f"[Auth ERROR] INVALID SIGNATURE – JWT secret mismatch!")
         raise HTTPException(status_code=401, detail="Invalid authentication token")
     except jwt.InvalidTokenError as e:
         print(f"[Auth ERROR] InvalidTokenError: {type(e).__name__}: {str(e)}")
