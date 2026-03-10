@@ -16,8 +16,8 @@ from typing import Any
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
-EMOTION_API_URL = "https://api-inference.huggingface.co/models/SamLowe/roberta-base-go_emotions"
-DISTRESS_API_URL = "https://api-inference.huggingface.co/models/lxyuan/distilbert-base-multilingual-cased-sentiments-student"
+EMOTION_API_URL = "https://router.huggingface.co/hf-inference/models/SamLowe/roberta-base-go_emotions"
+DISTRESS_API_URL = "https://router.huggingface.co/hf-inference/models/lxyuan/distilbert-base-multilingual-cased-sentiments-student"
 
 # GoEmotions labels that indicate elevated mental health risk
 CRISIS_EMOTION_LABELS = {"grief", "fear", "sadness", "remorse", "nervousness", "disappointment"}
