@@ -95,6 +95,53 @@ async def root():
     }
 
 
+# ── TEMPORARY DEBUG ENDPOINT — REMOVE AFTER FIXING AUTH ──────────────────────
+@app.get("/debug/auth", tags=["Debug"])
+async def debug_auth(token: str = ""):
+    """Temporary endpoint to diagnose JWT verification issues."""
+    import base64, hmac, hashlib, json, os
+
+    raw_secret = os.environ.get("SUPABASE_JWT_SECRET", "")
+    info = {
+        "secret_length": len(raw_secret),
+        "secret_first_4": raw_secret[:4] if raw_secret else "EMPTY",
+        "secret_looks_like_jwt": raw_secret.count(".") == 2 and raw_secret.startswith("eyJ"),
+    }
+
+    if not token:
+        info["message"] = "Pass ?token=YOUR_JWT to test verification"
+        return info
+
+    # Decode token header
+    try:
+        parts = token.split(".")
+        info["token_parts"] = len(parts)
+        if len(parts) >= 1:
+            padding = 4 - len(parts[0]) % 4
+            header_b64 = parts[0] + ("=" * padding if padding != 4 else "")
+            header = json.loads(base64.urlsafe_b64decode(header_b64))
+            info["token_header"] = header
+    except Exception as e:
+        info["token_header_error"] = str(e)
+
+    # Try HMAC verification
+    if len(parts) == 3 and raw_secret:
+        try:
+            secret_bytes = base64.b64decode(raw_secret)
+            info["decoded_secret_length"] = len(secret_bytes)
+            signing_input = f"{parts[0]}.{parts[1]}".encode("ascii")
+            expected = hmac.new(secret_bytes, signing_input, hashlib.sha256).digest()
+            sig_padding = 4 - len(parts[2]) % 4
+            actual = base64.urlsafe_b64decode(parts[2] + ("=" * sig_padding if sig_padding != 4 else ""))
+            info["signature_match"] = hmac.compare_digest(expected, actual)
+            info["expected_sig_b64"] = base64.b64encode(expected).decode()[:20] + "..."
+            info["actual_sig_b64"] = base64.b64encode(actual).decode()[:20] + "..."
+        except Exception as e:
+            info["verification_error"] = str(e)
+
+    return info
+
+
 # Register Modular Routers
 app.include_router(chat_router.router)
 app.include_router(mood_router.router)
