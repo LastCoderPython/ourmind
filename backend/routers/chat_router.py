@@ -69,6 +69,8 @@ def chat_endpoint(request: ChatRequest, user_id: str = Depends(get_current_user)
                 "crisis_reasons": [],
             }
 
+        print(f"[Chat] Emotion: {analysis['dominant_emotion']}, Crisis: {analysis['crisis_trigger']}")
+
         # Step 2: LLM Generation
         ai_response, ai_tasks, detected_language = llm_service.get_response(request.message, request.session_id)
 
