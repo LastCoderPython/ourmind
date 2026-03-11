@@ -69,7 +69,13 @@ def chat_endpoint(request: ChatRequest, user_id: str = Depends(get_current_user)
                 "crisis_reasons": [],
             }
 
-        print(f"[Chat] Emotion: {analysis['dominant_emotion']}, Crisis: {analysis['crisis_trigger']}")
+        # Log detailed emotion scores for debugging
+        top_emotions = sorted(analysis["emotions"].items(), key=lambda x: x[1], reverse=True)[:5]
+        crisis_scores = {k: v for k, v in analysis["emotions"].items() if k in {"grief", "fear", "sadness", "remorse", "nervousness", "disappointment"} and v > 0.1}
+        print(f"[Chat] Dominant: {analysis['dominant_emotion']} | Top5: {top_emotions}")
+        print(f"[Chat] Crisis-relevant scores: {crisis_scores} | Distress: {analysis['distress_scores']}")
+        print(f"[Chat] Crisis: {analysis['crisis_trigger']} | Reasons: {analysis.get('crisis_reasons', [])}")
+
 
         # Step 2: LLM Generation
         ai_response, ai_tasks, detected_language = llm_service.get_response(request.message, request.session_id)
