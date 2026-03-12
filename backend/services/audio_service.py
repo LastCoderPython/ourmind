@@ -173,7 +173,7 @@ class AudioService:
         json_payload = json.dumps(payload, ensure_ascii=False).encode('utf-8')
 
         try:
-            response = requests.post(url, headers=headers, data=json_payload)
+            response = requests.post(url, headers=headers, data=json_payload, timeout=30)
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             with open("cartesia_error.log", "w", encoding="utf-8") as err_f:

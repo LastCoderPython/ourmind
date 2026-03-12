@@ -10,6 +10,8 @@ from datetime import date, timedelta
 from typing import Optional
 import random
 import uuid
+import os
+import sys
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,6 +44,23 @@ async def lifespan(app: FastAPI):
     print("  Manas Backend – Starting Up")
     print("=" * 60)
 
+    # 0. Validate Critical Environment Variables (Fail-Fast)
+    required_vars = [
+        "SUPABASE_URL", "SUPABASE_KEY", "SUPABASE_JWT_SECRET",
+        "GROQ_API_KEY", "CARTESIA_API_KEY"
+    ]
+    missing_vars = [var for var in required_vars if not os.environ.get(var)]
+    
+    if missing_vars:
+        print("\n❌ CRITICAL: Missing required environment variables:")
+        for var in missing_vars:
+            print(f"   - {var}")
+        print("\nDeployment aborted. Please configure these variables in Render/Heroku or your local .env file.")
+        sys.exit(1)
+        
+    if not os.environ.get("HF_API_TOKEN"):
+        print("⚠️ WARNING: HF_API_TOKEN is missing. Emotion service will run in fallback mode.")
+
     # 1. Load lightweight emotion model first
     emotion_service.load_model()
 
@@ -73,13 +92,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS – allow frontend origins
+# CORS – allow frontend origins securely
+ALLOWED_ORIGINS = os.environ.get(
+    "ALLOWED_ORIGINS",
+    "http://localhost:5173,http://localhost:3000"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 
