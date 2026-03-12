@@ -14,7 +14,8 @@ class MoodLogRequest(BaseModel):
     intensity: float
 
 @router.post("/api/mood")
-def log_daily_mood(request: MoodLogRequest, user_id: str = Depends(get_current_user)):
+def log_daily_mood(request: MoodLogRequest, user_auth: tuple[str, dict] = Depends(get_current_user)):
+    user_id, _ = user_auth
     """Logs the inferred dominant emotion from the daily check-in conversation."""
     db = get_db_client()
     today = date.today().isoformat()
@@ -35,7 +36,8 @@ def log_daily_mood(request: MoodLogRequest, user_id: str = Depends(get_current_u
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/api/moods/history")
-def get_mood_history(user_id: str = Depends(get_current_user)):
+def get_mood_history(user_auth: tuple[str, dict] = Depends(get_current_user)):
+    user_id, _ = user_auth
     """Fetches the actual mood history for the Recharts frontend."""
     db = get_db_client()
     
@@ -50,7 +52,8 @@ def get_mood_history(user_id: str = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/api/weather")
-def get_emotional_weather(user_id: str = Depends(get_current_user)):
+def get_emotional_weather(user_auth: tuple[str, dict] = Depends(get_current_user)):
+    user_id, _ = user_auth
     """
     Calculates the 'weather' based on the intensity of distress/negative emotions 
     over the last 5 days. Since we store positive dominant emotions, we heuristic map it.

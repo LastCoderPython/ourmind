@@ -15,7 +15,8 @@ class TaskCompletionRequest(BaseModel):
     completed: bool
 
 @router.post("/api/tasks")
-def create_tasks(request: TaskCreateRequest, user_id: str = Depends(get_current_user)):
+def create_tasks(request: TaskCreateRequest, user_auth: tuple[str, dict] = Depends(get_current_user)):
+    user_id, _ = user_auth
     db = get_db_client()
     today = date.today().isoformat()
     
@@ -36,7 +37,8 @@ def create_tasks(request: TaskCreateRequest, user_id: str = Depends(get_current_
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/api/tasks/today")
-def get_today_tasks(user_id: str = Depends(get_current_user)):
+def get_today_tasks(user_auth: tuple[str, dict] = Depends(get_current_user)):
+    user_id, _ = user_auth
     db = get_db_client()
     today = date.today().isoformat()
     
@@ -47,7 +49,8 @@ def get_today_tasks(user_id: str = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/tasks/complete")
-def update_task_status(request: TaskCompletionRequest, user_id: str = Depends(get_current_user)):
+def update_task_status(request: TaskCompletionRequest, user_auth: tuple[str, dict] = Depends(get_current_user)):
+    user_id, _ = user_auth
     db = get_db_client()
     try:
         # Update the task. Note: Supabase RLS should also ensure the user_id matches

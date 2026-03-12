@@ -6,7 +6,8 @@ from database.supabase_client import get_db_client
 router = APIRouter(tags=["Mind Garden"])
 
 @router.get("/api/garden")
-def get_garden(user_id: str = Depends(get_current_user)):
+def get_garden(user_auth: tuple[str, dict] = Depends(get_current_user)):
+    user_id, _ = user_auth
     db = get_db_client()
     try:
         response = db.table("gardens").select("*").eq("user_id", user_id).execute()
@@ -20,7 +21,8 @@ def get_garden(user_id: str = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/garden/water")
-def water_plant(user_id: str = Depends(get_current_user)):
+def water_plant(user_auth: tuple[str, dict] = Depends(get_current_user)):
+    user_id, _ = user_auth
     """Simple gamification. E.g. called when a user completes 3 tasks."""
     db = get_db_client()
     try:

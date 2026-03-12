@@ -15,7 +15,8 @@ class ReactRequest(BaseModel):
     reaction_type: str # "support", "growth", "relatable", "strength"
 
 @router.post("/api/posts")
-def create_community_post(request: PostRequest, user_id: str = Depends(get_current_user)):
+def create_community_post(request: PostRequest, user_auth: tuple[str, dict] = Depends(get_current_user)):
+    user_id, _ = user_auth
     db = get_db_client()
     
     post = {
@@ -31,7 +32,8 @@ def create_community_post(request: PostRequest, user_id: str = Depends(get_curre
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/api/posts")
-def get_recent_posts(user_id: str = Depends(get_current_user)):
+def get_recent_posts(user_auth: tuple[str, dict] = Depends(get_current_user)):
+    user_id, _ = user_auth
     db = get_db_client()
     try:
         # Fetch latest 20 posts
@@ -61,7 +63,8 @@ def get_recent_posts(user_id: str = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/react")
-def react_to_post(request: ReactRequest, user_id: str = Depends(get_current_user)):
+def react_to_post(request: ReactRequest, user_auth: tuple[str, dict] = Depends(get_current_user)):
+    user_id, _ = user_auth
     db = get_db_client()
     
     reaction = {
