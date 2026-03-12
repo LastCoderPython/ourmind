@@ -46,7 +46,8 @@ class ChatResponse(BaseModel):
     crisis: CrisisInfo
 
 @router.post("", response_model=ChatResponse)
-def chat_endpoint(request: ChatRequest, user_id: str = Depends(get_current_user)):
+def chat_endpoint(request: ChatRequest, user_auth: tuple[str, dict] = Depends(get_current_user)):
+    user_id, jwt_payload = user_auth
     """
     1. Analyzes user message for emotions and distress.
     2. Checks for crisis triggers.
@@ -77,22 +78,27 @@ def chat_endpoint(request: ChatRequest, user_id: str = Depends(get_current_user)
         print(f"[Chat] Crisis: {analysis['crisis_trigger']} | Reasons: {analysis.get('crisis_reasons', [])}")
 
 
-        # Step 1.5: Fetch User Profile for Name Context
+        # Step 1.5: Fetch User Profile for Name Context (from JWT or DB)
         user_name = "Student"
-        try:
-            # First try "full_name", fallback to "username" if column missing
-            profile_res = db.table("profiles").select("username, full_name").eq("id", user_id).execute()
-            if profile_res.data and len(profile_res.data) > 0:
-                profile_data = profile_res.data[0]
-                if profile_data.get("full_name"):
-                    user_name = profile_data["full_name"].split(" ")[0]
-                elif profile_data.get("username"):
-                    user_name = profile_data["username"]
-        except Exception as e:
-            if "does not exist" in str(e):
-                pass # schema difference, ignore loudly
-            else:
-                print(f"[Chat] Warning: Could not fetch user profile name: {e}")
+        user_meta = jwt_payload.get("user_metadata", {})
+        if user_meta:
+            if user_meta.get("full_name"):
+                user_name = user_meta["full_name"].split(" ")[0]
+            elif user_meta.get("name"):
+                user_name = user_meta["name"].split(" ")[0]
+            elif user_meta.get("anonymous_name"):
+                user_name = user_meta["anonymous_name"]
+
+        # Fallback to DB query if JWT doesn't have it (using correct schema)
+        if user_name == "Student":
+            try:
+                profile_res = db.table("profiles").select("anonymous_name").eq("id", user_id).execute()
+                if profile_res.data and len(profile_res.data) > 0 and profile_res.data[0].get("anonymous_name"):
+                    user_name = profile_res.data[0]["anonymous_name"]
+            except Exception as e:
+                # Silently ignore missing column errors if schema isn't fully migrated
+                pass
+
 
         # Step 2: LLM Generation
         ai_response, ai_tasks, detected_language = llm_service.get_response(request.message, request.session_id, user_name)
@@ -160,8 +166,9 @@ async def voice_chat_endpoint(
     background_tasks: BackgroundTasks,
     audio_file: UploadFile = File(...),
     session_id: str = Form(...),
-    user_id: str = Depends(get_current_user)
+    user_auth: tuple[str, dict] = Depends(get_current_user)
 ):
+    user_id, jwt_payload = user_auth
     """
     1. Receives audio file.
     2. Transcribes using Groq Whisper.
@@ -190,19 +197,26 @@ async def voice_chat_endpoint(
         detected_emotion = analysis["dominant_emotion"]
         print(f"[VOICE DEBUG] Step 2 DONE. Emotion: {detected_emotion}")
         
-        # 2.5 Fetch User Profile for Name Context
+        # 2.5 Fetch User Profile for Name Context (from JWT or DB)
         user_name = "Student"
-        try:
-            profile_res = db.table("profiles").select("username, full_name").eq("id", user_id).execute()
-            if profile_res.data and len(profile_res.data) > 0:
-                profile_data = profile_res.data[0]
-                if profile_data.get("full_name"):
-                    user_name = profile_data["full_name"].split(" ")[0]
-                elif profile_data.get("username"):
-                    user_name = profile_data["username"]
-        except Exception as e:
-            if "does not exist" not in str(e):
-                print(f"[VOICE DEBUG] Warning: Could not fetch user profile name: {e}")
+        user_meta = jwt_payload.get("user_metadata", {})
+        if user_meta:
+            if user_meta.get("full_name"):
+                user_name = user_meta["full_name"].split(" ")[0]
+            elif user_meta.get("name"):
+                user_name = user_meta["name"].split(" ")[0]
+            elif user_meta.get("anonymous_name"):
+                user_name = user_meta["anonymous_name"]
+                
+        # Fallback to DB query if JWT doesn't have it (using correct schema)
+        if user_name == "Student":
+            try:
+                profile_res = db.table("profiles").select("anonymous_name").eq("id", user_id).execute()
+                if profile_res.data and len(profile_res.data) > 0 and profile_res.data[0].get("anonymous_name"):
+                    user_name = profile_res.data[0]["anonymous_name"]
+            except Exception as e:
+                pass
+
 
         # 3. Request LLM
         print("[VOICE DEBUG] Step 3: LLM...")

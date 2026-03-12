@@ -54,7 +54,7 @@ _load_jwks()
 def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security)) -> str:
     """
     Validates the Supabase JWT token from the Authorization header
-    and returns the authenticated user's ID.
+    and returns a tuple of (user_id, raw_jwt_payload).
 
     Supabase signs JWTs with ES256 (ECDSA P-256).
     """
@@ -90,7 +90,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
             raise HTTPException(status_code=401, detail="Token missing user ID (sub)")
 
         print(f"[Auth OK] User {user_id[:8]}... authenticated via {alg}")
-        return user_id
+        return user_id, payload
 
     except jwt.ExpiredSignatureError:
         print("[Auth ERROR] Token has expired")
