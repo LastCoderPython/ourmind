@@ -14,23 +14,24 @@ from collections import defaultdict
 
 MODEL_NAME = "llama-3.1-8b-instant"
 
-SYSTEM_PROMPT = (
-    "You are an empathetic, CBT-trained mental health companion for university "
-    "students. Use localized analogies relevant to North East India. Maintain "
-    "student anonymity and focus on active listening and coping strategies. "
-    "Respond with warmth, validate feelings, and guide students through "
-    "cognitive behavioral techniques when appropriate. Keep responses concise "
-    "and supportive. "
-    "LANGUAGE RULE: You MUST reply in ENGLISH by default. "
-    "Only switch to another language if the user CLEARLY writes in that language "
-    "(e.g., full sentences in Hindi, Bengali, or Assamese). Short English phrases, "
-    "greetings, or single words should ALWAYS get an English response. "
-    "IMPORTANT: You MUST ALWAYS reply with a valid JSON object strictly containing THREE keys: "
-    "1. 'response': Your conversational text response in English (or the user's language if they wrote in a non-English language). "
-    "2. 'suggested_tasks': A list of 0 to 2 short, actionable gamified tasks for the user "
-    "to complete today (e.g. '5-minute breathing exercise'). "
-    "3. 'detected_language': A 2-letter ISO code representing the language spoken by the user (e.g., 'en', 'hi', 'bn', 'as', 'ta', 'te', 'mr', 'gu')."
-)
+def get_system_prompt(user_name: str = "Student") -> str:
+    return (
+        f"You are an empathetic, CBT-trained mental health companion for university "
+        f"students. You are talking to a user named {user_name}. Use localized analogies relevant to North East India. Maintain "
+        f"student anonymity and focus on active listening and coping strategies. "
+        f"Respond with warmth, validate feelings, and guide them through "
+        f"cognitive behavioral techniques when appropriate. Keep responses concise "
+        f"and supportive. Do NOT invent or hallucinate the user's name; always address them as {user_name} if you use a name.\n"
+        f"LANGUAGE RULE: You MUST reply in ENGLISH by default. "
+        f"Only switch to another language if the user CLEARLY writes in that language "
+        f"(e.g., full sentences in Hindi, Bengali, or Assamese). Short English phrases, "
+        f"greetings, or single words should ALWAYS get an English response. \n"
+        f"IMPORTANT: You MUST ALWAYS reply with a valid JSON object strictly containing THREE keys: "
+        f"1. 'response': Your conversational text response in English (or the user's language if they wrote in a non-English language). "
+        f"2. 'suggested_tasks': A list of 0 to 2 short, actionable gamified tasks for the user "
+        f"to complete today (e.g. '5-minute breathing exercise'). "
+        f"3. 'detected_language': A 2-letter ISO code representing the language spoken by the user (e.g., 'en', 'hi', 'bn', 'as', 'ta', 'te', 'mr', 'gu')."
+    )
 
 MAX_HISTORY_TURNS = 10      # keep last N user+assistant turns per session
 
@@ -53,7 +54,7 @@ class LLMService:
         self._client = Groq(api_key=api_key)
         print("[LLMService] [OK] Groq client initialized successfully.")
 
-    def get_response(self, message: str, session_id: str) -> tuple[str, list[str], str]:
+    def get_response(self, message: str, session_id: str, user_name: str = "Student") -> tuple[str, list[str], str]:
         """
         Generate a counselling response, tasks, and detect language using Groq.
 
@@ -61,11 +62,16 @@ class LLMService:
         ----------
         message    : The user's message.
         session_id : Unique session identifier for conversation history.
+        user_name  : The name of the user to address them properly.
+
 
         Returns
         -------
+        -------
         Tuple containing (The assistant's response string, List of suggested tasks, Detected language code).
         """
+
+
         if self._client is None:
             raise RuntimeError("LLM client not loaded. Call load_model() first.")
 
@@ -79,7 +85,7 @@ class LLMService:
             history = self._history[session_id]
 
         # Construct messages array
-        messages = [{"role": "system", "content": SYSTEM_PROMPT}] + history
+        messages = [{"role": "system", "content": get_system_prompt(user_name)}] + history
         
 
         try:
