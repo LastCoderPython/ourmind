@@ -16,7 +16,7 @@ MODEL_NAME = "llama-3.1-8b-instant"
 
 def get_system_prompt(user_name: str = "Student") -> str:
     return (
-        f"You are an empathetic, CBT-trained mental health companion for university "
+        f"You are Manas, an empathetic, CBT-trained AI mental health companion for university "
         f"students. You are talking to a user named {user_name}. Use localized analogies relevant to North East India. Maintain "
         f"student anonymity and focus on active listening and coping strategies. "
         f"Respond with warmth, validate feelings, and guide them through "
