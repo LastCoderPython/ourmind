@@ -80,12 +80,19 @@ def chat_endpoint(request: ChatRequest, user_id: str = Depends(get_current_user)
         # Step 1.5: Fetch User Profile for Name Context
         user_name = "Student"
         try:
-            profile_res = db.table("profiles").select("full_name").eq("id", user_id).execute()
-            if profile_res.data and len(profile_res.data) > 0 and profile_res.data[0].get("full_name"):
-                # Use their first name
-                user_name = profile_res.data[0]["full_name"].split(" ")[0]
+            # First try "full_name", fallback to "username" if column missing
+            profile_res = db.table("profiles").select("username, full_name").eq("id", user_id).execute()
+            if profile_res.data and len(profile_res.data) > 0:
+                profile_data = profile_res.data[0]
+                if profile_data.get("full_name"):
+                    user_name = profile_data["full_name"].split(" ")[0]
+                elif profile_data.get("username"):
+                    user_name = profile_data["username"]
         except Exception as e:
-            print(f"[Chat] Warning: Could not fetch user profile name: {e}")
+            if "does not exist" in str(e):
+                pass # schema difference, ignore loudly
+            else:
+                print(f"[Chat] Warning: Could not fetch user profile name: {e}")
 
         # Step 2: LLM Generation
         ai_response, ai_tasks, detected_language = llm_service.get_response(request.message, request.session_id, user_name)
@@ -186,11 +193,16 @@ async def voice_chat_endpoint(
         # 2.5 Fetch User Profile for Name Context
         user_name = "Student"
         try:
-            profile_res = db.table("profiles").select("full_name").eq("id", user_id).execute()
-            if profile_res.data and len(profile_res.data) > 0 and profile_res.data[0].get("full_name"):
-                user_name = profile_res.data[0]["full_name"].split(" ")[0]
+            profile_res = db.table("profiles").select("username, full_name").eq("id", user_id).execute()
+            if profile_res.data and len(profile_res.data) > 0:
+                profile_data = profile_res.data[0]
+                if profile_data.get("full_name"):
+                    user_name = profile_data["full_name"].split(" ")[0]
+                elif profile_data.get("username"):
+                    user_name = profile_data["username"]
         except Exception as e:
-            print(f"[VOICE DEBUG] Warning: Could not fetch user profile name: {e}")
+            if "does not exist" not in str(e):
+                print(f"[VOICE DEBUG] Warning: Could not fetch user profile name: {e}")
 
         # 3. Request LLM
         print("[VOICE DEBUG] Step 3: LLM...")
