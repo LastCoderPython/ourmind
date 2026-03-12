@@ -26,6 +26,15 @@ EMOTION_CRISIS_THRESHOLD = 0.7
 # Distress sentiment threshold (negative sentiment)
 DISTRESS_CRISIS_THRESHOLD = 0.85
 
+# Hardcoded keyword safety net for severe risks that ML might miss if text is too short
+# Also includes common misspellings to ensure detection
+CRISIS_KEYWORDS = {
+    "suicide", "sucide", "sucidal", "kill myself", "want to die", "end my life", "end it all",
+    "self harm", "suicidal"
+}
+
+
+
 HELPLINES = [
     {
         "name": "iCall – Psychosocial Helpline",
@@ -139,6 +148,16 @@ class EmotionService:
 
         # ── Crisis Detection (dual-signal) ──────────────────────────────
         crisis_reasons: list[str] = []
+
+        # Signal 0: Hardcoded keyword safety net
+        text_lower = text.lower()
+        if any(kw in text_lower for kw in CRISIS_KEYWORDS):
+            crisis_reasons.append("High-risk keyword detected in message")
+            # Force high negative scores so the dashboard/app registers distress
+            emotion_scores["sadness"] = max(emotion_scores.get("sadness", 0.0), 0.99)
+            distress_scores["negative"] = max(distress_scores.get("negative", 0.0), 0.99)
+            if dominant_emotion not in CRISIS_EMOTION_LABELS:
+                dominant_emotion = "sadness"
 
         # Signal 1: High-risk emotions from GoEmotions
         for label in CRISIS_EMOTION_LABELS:
